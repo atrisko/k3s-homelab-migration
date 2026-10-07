@@ -59,10 +59,10 @@ resource "aws_volume_attachment" "ebs_att" {
 # Automatically write a dedicated SSH config file on apply
 resource "local_file" "ssh_config" {
   content = <<-EOF
-    Host aws-homelab
+    Host aws-k3s-poc
         HostName ${aws_instance.k3s_server.public_ip}
         User admin
-        IdentityFile ${pathexpand(var.ssh_public_key_path != "" ? replace(var.ssh_public_key_path, ".pub", "") : "~/.ssh/id_ed25519_aws_poc")}
+        IdentityFile ${pathexpand(replace(var.ssh_public_key_path, ".pub", ""))}
         IdentitiesOnly yes
         StrictHostKeyChecking no
         UserKnownHostsFile /dev/null

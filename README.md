@@ -43,17 +43,30 @@ The primary architectural goal is achieving strict separation between **cloud pr
 
 * AWS CLI installed and configured (`~/.aws/credentials`)
 * Terraform >= 1.5.0
+* Dedicated SSH key pair (default: `~/.ssh/id_ed25519_aws_homelab.pub`)
 
 ### Run the PoC Cycle
 
-1. Infrastructure Provisioning:
-```bash
-cd terraform/aws-poc
-terraform init
-terraform apply
-```
+1. **Provision Infrastructure:**
+   ```bash
+   cd terraform/aws-poc
+   terraform init
+   terraform apply
+   ```
 
-To avoid ongoing cloud costs when finished testing:
-```bash
-terraform destroy
-```
+2. **Access the Node:**
+   ```bash
+   ssh -F ssh_config aws-k3s-poc
+   ```
+
+3. **Teardown & Cleanup:**
+   To avoid ongoing cloud costs when finished testing:
+   ```bash
+   terraform destroy
+   ```
+
+---
+
+## License
+
+Distributed under the [MIT License](LICENSE).

@@ -47,7 +47,29 @@ The deployment deliberately separates root storage from application data:
 
 ---
 
-## 3. Terraform State & Execution Notes
+## 3. Access Management & Local SSH Automation
+
+To adhere to the **Principle of Least Privilege (PoLP)** and isolate identity boundaries, the infrastructure uses a dedicated Ed25519 key pair instead of shared administrative credentials:
+
+1. **Key Provisioning (`aws_key_pair.k3s_key`):**
+   * Uploads the public key specified via the `ssh_public_key_path` variable.
+   * Injected into the Debian instance via cloud-init for the default `admin` user.
+
+2. **Automated Runtime SSH Config (`local_file.ssh_config`):**
+   * Because EC2 instances receive dynamic public IPs across `apply`/`destroy` cycles, Terraform automatically generates a local OpenSSH client configuration file (`ssh_config`).
+   * The generated file maps the alias `aws-k3s-poc` to the newly provisioned public IP, disables host-key collisions (`UserKnownHostsFile /dev/null`, `StrictHostKeyChecking no`), and enforces `IdentitiesOnly yes`.
+   * **Security Notice:** The generated `ssh_config` file contains local runtime data and is excluded from source control via `.gitignore`.
+
+### Connecting to the Host
+
+```bash
+# Connect using the generated runtime configuration
+ssh -F ssh_config aws-k3s-poc
+```
+
+---
+
+## 4. Terraform State & Execution Notes
 
 * **Dependency Graph:** Changes to compute attributes (e.g., AMI upgrade) trigger instance replacement while maintaining independent EBS volume definitions.
 * **Teardown Command:**
