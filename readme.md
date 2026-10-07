@@ -1,31 +1,54 @@
-# K3s Homelab Migration & Infrastructure as Code
+# Cloud-to-Bare-Metal: K3s Infrastructure PoC
 
-This repository documents my transition from an appliance-based homelab (Unraid) to a fully declarative, GitOps-driven Kubernetes (K3s) environment. 
+This repository contains an automated Proof-of-Concept (PoC) for deploying a **K3s Kubernetes cluster** on **Debian 13 (Trixie)**. 
 
-The project serves as both a functional homelab upgrade and a hands-on learning path for modern DevOps practices, Infrastructure as Code (IaC), configuration management, and container orchestration.
+The primary architectural goal is achieving strict separation between **cloud provisioning (Day 0)** and **system configuration (Day 1 & Day 2)**, serving as a functional blueprint for a bare-metal homelab migration.
 
-## 🎯 Project Goals & Roadmap
+---
 
-* **Phase 1: Cloud Proof of Concept (Current)** 
-  Provisioning the foundational architecture in AWS using Terraform, and automating the OS configuration and K3s bootstrap process using Ansible. This validates the setup in a risk-free environment.
-* **Phase 2: Workload Migration** 
-  Converting existing Docker Compose workloads (32+ containers) into declarative Kubernetes manifests.
-* **Phase 3: Bare Metal Cutover** 
-  Reusing the Ansible playbooks to deploy Debian/Ubuntu on the physical homelab hardware, configure `mergerfs` and `SnapRAID` for storage management, and bootstrap the local K3s cluster.
+## Architecture at a Glance
 
-## 🛠️ Technology Stack & Separation of Concerns
+* **Day 0 (Infrastructure Provisioning):** Managed via **Terraform** on AWS (ephemeral testbed: VPC, Subnet, Security Group, EC2, EBS).
+* **Day 1 & 2 (OS Configuration & Workloads):** Managed via **Ansible** (storage formatting, mounting, K3s installation, Traefik ingress).
+* **Bare-Metal Portability:** By isolating operating system configuration into Ansible, the entire Day 1/2 workflow runs identically on physical bare-metal nodes once Debian is installed.
 
-* **Day 0 - Provisioning:** Terraform & AWS (EC2, VPC, EBS)
-* **Day 1 - Configuration:** Ansible (OS setup, storage mounts, K3s installation)
-* **Day 2 - Orchestration:** Kubernetes (K3s) & Traefik (Ingress)
-* **Storage Backup/Parity:** mergerfs & SnapRAID
+---
 
-## 🚀 Getting Started (AWS PoC)
+## Repository Structure
 
-Detailed documentation for the AWS Proof of Concept can be found in [`docs/01-aws-poc.md`](docs/01-aws-poc.md).
+```text
+.
+├── README.md               # Project entry point and high-level overview
+├── docs/                   # Modular architecture and technical documentation
+│   ├── terraform.md        # Detailed guide for AWS provisioning & lifecycle
+│   └── ansible.md          # OS hardening, storage mounts, and K3s rollout (planned)
+├── terraform/
+│   └── aws-poc/            # Infrastructure-as-Code definitions (VPC, EC2, EBS)
+└── ansible/                # Playbooks, roles, and inventory (in progress)
 
-### 1. Infrastructure Provisioning
+## Detailed Documentation
+
+    Terraform AWS Provisioning & Lifecycle Guide
+
+    Architecture Decisions & Network Topology (docs/architecture.md - coming soon)
+
+    Ansible Configuration & Storage Orchestration (docs/ansible.md - coming soon)
+
+## Quickstart
+
+### Prerequisites
+
+* AWS CLI installed and configured (~/.aws/credentials)
+* Terraform >= 1.5.0
+
+### Run the PoC Cycle
+
+1. Infrastructure Provisioning
 ```bash
 cd terraform/aws-poc
 terraform init
 terraform apply
+
+To avoid ongoing cloud costs when finished testing:
+
+terraform destroy
