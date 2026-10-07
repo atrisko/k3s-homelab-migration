@@ -55,3 +55,19 @@ resource "aws_volume_attachment" "ebs_att" {
   volume_id   = aws_ebs_volume.data_volume.id
   instance_id = aws_instance.k3s_server.id
 }
+
+# Automatically write a dedicated SSH config file on apply
+resource "local_file" "ssh_config" {
+  content = <<-EOF
+    Host aws-homelab
+        HostName ${aws_instance.k3s_server.public_ip}
+        User admin
+        IdentityFile ${pathexpand(var.ssh_public_key_path != "" ? replace(var.ssh_public_key_path, ".pub", "") : "~/.ssh/id_ed25519_aws_poc")}
+        IdentitiesOnly yes
+        StrictHostKeyChecking no
+        UserKnownHostsFile /dev/null
+  EOF
+
+  filename        = "${path.module}/ssh_config"
+  file_permission = "0600"
+}
