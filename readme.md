@@ -25,30 +25,35 @@ The primary architectural goal is achieving strict separation between **cloud pr
 ├── terraform/
 │   └── aws-poc/            # Infrastructure-as-Code definitions (VPC, EC2, EBS)
 └── ansible/                # Playbooks, roles, and inventory (in progress)
+```
+
+---
 
 ## Detailed Documentation
 
-    Terraform AWS Provisioning & Lifecycle Guide
+* [Terraform AWS Provisioning & Lifecycle Guide](docs/terraform.md)
+* Architecture Decisions & Network Topology (`docs/architecture.md` - coming soon)
+* Ansible Configuration & Storage Orchestration (`docs/ansible.md` - coming soon)
 
-    Architecture Decisions & Network Topology (docs/architecture.md - coming soon)
-
-    Ansible Configuration & Storage Orchestration (docs/ansible.md - coming soon)
+---
 
 ## Quickstart
 
 ### Prerequisites
 
-* AWS CLI installed and configured (~/.aws/credentials)
+* AWS CLI installed and configured (`~/.aws/credentials`)
 * Terraform >= 1.5.0
 
 ### Run the PoC Cycle
 
-1. Infrastructure Provisioning
+1. Infrastructure Provisioning:
 ```bash
 cd terraform/aws-poc
 terraform init
 terraform apply
+```
 
 To avoid ongoing cloud costs when finished testing:
-
+```bash
 terraform destroy
+```
