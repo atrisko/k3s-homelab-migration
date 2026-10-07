@@ -3,12 +3,22 @@
 *.tfstate
 *.tfstate.backup
 *.tfvars
+*.tfvars.json
 .terraform.tfstate.lock.info
+*.tfplan
+crash.log
+crash.*.log
 
 # Ansible
 *.retry
 ansible.log
+# Generierte dynamische Inventare (falls Terraform diese später ablegt)
+hosts.ini
+inventory.yml
 
 # OS / Editor
 .DS_Store
 .vscode/
+
+# Local SSH runtime configuration
+ssh_config
