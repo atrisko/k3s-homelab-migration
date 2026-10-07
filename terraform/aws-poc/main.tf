@@ -14,6 +14,16 @@ data "aws_ami" "debian" {
   }
 }
 
+# Upload the dedicated public key to AWS EC2
+resource "aws_key_pair" "k3s_key" {
+  key_name   = "k3s-poc-key"
+  public_key = file(pathexpand(var.ssh_public_key_path))
+
+  tags = {
+    Name = "k3s-poc-key"
+  }
+}
+
 # The virtual machine (K3s Node)
 resource "aws_instance" "k3s_server" {
   ami                    = data.aws_ami.debian.id
@@ -23,6 +33,9 @@ resource "aws_instance" "k3s_server" {
 
   # IMPORTANT: No userdata script here! 
   # OS configuration and K3s installation will be handled by Ansible (Day 1 Ops).
+
+  # Attach the provisioned SSH key pair for remote access and Ansible orchestration
+  key_name = aws_key_pair.k3s_key.key_name
 
   tags = {
     Name = "K3s-PoC-Server"
