@@ -1,0 +1,44 @@
+# Fetch the latest Debian 12 (Bookworm) image from the official Debian project
+data "aws_ami" "debian" {
+  most_recent = true
+  owners      = ["136693071363"] # Official Debian AWS account ID
+
+  filter {
+    name   = "name"
+    values = ["debian-13-amd64-*"]
+  }
+  
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+}
+
+# The virtual machine (K3s Node)
+resource "aws_instance" "k3s_server" {
+  ami                    = data.aws_ami.debian.id
+  instance_type          = "t3.micro"
+  subnet_id              = aws_subnet.public_subnet.id
+  vpc_security_group_ids = [aws_security_group.k3s_sg.id]
+
+  # IMPORTANT: No userdata script here! 
+  # OS configuration and K3s installation will be handled by Ansible (Day 1 Ops).
+
+  tags = {
+    Name = "K3s-PoC-Server"
+  }
+}
+
+# Additional 10 GB disk (Simulates the future mergerfs/SnapRAID storage pool)
+resource "aws_ebs_volume" "data_volume" {
+  availability_zone = aws_instance.k3s_server.availability_zone
+  size              = 10 
+  type              = "gp3" 
+}
+
+# Attach the EBS volume to the EC2 instance
+resource "aws_volume_attachment" "ebs_att" {
+  device_name = "/dev/sdf"
+  volume_id   = aws_ebs_volume.data_volume.id
+  instance_id = aws_instance.k3s_server.id
+}

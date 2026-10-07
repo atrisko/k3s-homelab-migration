@@ -12,5 +12,3 @@ ansible.log
 # OS / Editor
 .DS_Store
 .vscode/
-
-/terraform/aws-poc/*
