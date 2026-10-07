@@ -1,0 +1,16 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+.terraform.tfstate.lock.info
+
+# Ansible
+*.retry
+ansible.log
+
+# OS / Editor
+.DS_Store
+.vscode/
+
+/terraform/aws-poc/*
