@@ -1,5 +1,5 @@
 ---
-- name: K3s Cluster Bereitstellung
+- name: K3s Cluster Provisioning
   hosts: k3s_cluster
   become: true
 
