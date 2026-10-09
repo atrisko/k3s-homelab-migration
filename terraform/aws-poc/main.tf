@@ -62,7 +62,7 @@ resource "local_file" "ssh_config" {
     Host aws-k3s-poc
         HostName ${aws_instance.k3s_server.public_ip}
         User admin
-        IdentityFile ${pathexpand(replace(var.ssh_public_key_path, ".pub", ""))}
+        IdentityFile ${pathexpand(var.ssh_public_key_path)}
         IdentitiesOnly yes
         StrictHostKeyChecking no
         UserKnownHostsFile /dev/null
