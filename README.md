@@ -14,6 +14,23 @@ The primary architectural goal is achieving strict separation between **cloud pr
 
 ---
 
+## Deployment Targets & Multi-Platform Strategy
+
+The infrastructure and provisioning workflow is strictly platform-agnostic, separating infrastructure declaration from application orchestration:
+
+| Layer | AWS Cloud PoC (`eu-central-1`) | RemoteLab (Hyper-V Hypervisor) |
+| :--- | :--- | :--- |
+| **Purpose** | IaC validation, cloud networking, ephemeral PoC | Staging, load testing, full stack migration rehearsal (32+ containers) |
+| **Compute** | EC2 (`t3.micro` for base tests, `t3.large` for full load) | Debian Gen2 VM (dedicated vCPUs, expandable RAM) |
+| **Storage** | AWS EBS (`gp3`, 10 GB PoC) | Virtual Hard Disk (`.vhdx`, dynamically sized) |
+| **Provisioning** | Terraform + Ansible | Hyper-V Host / PowerShell + Ansible |
+| **Cost Profile** | Pay-as-you-go (~0.08 $/hr for load testing) | Zero marginal cost (continuous runtime) |
+
+### Orchestration Principle
+Ansible plays and roles target the abstract OS layer (`Debian 13`). Whether executed against an AWS EC2 instance via the generated `ssh_config` or against a static IP in the Hyper-V RemoteLab, the provisioning baseline, storage-mounts, and K3s bootstrap remain identical.
+
+---
+
 ## Repository Structure
 
 ```text
