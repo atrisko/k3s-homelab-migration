@@ -1,11 +1,11 @@
 ---
-- name: System-Paketquellen aktualisieren und Upgrades einspielen
+- name: Update system package cache and perform dist-upgrade
   ansible.builtin.apt:
     update_cache: yes
     upgrade: dist
-    cache_valid_time: 3600
+    cache_valid_time: 3600 # Prevents running 'apt-get update' again if already run within the last hour
 
-- name: Grundlegende Werkzeuge installieren
+- name: Install essential system tools
   ansible.builtin.apt:
     name:
       - curl
@@ -13,5 +13,5 @@
       - htop
       - jq
       - open-iscsi
-      - nfs-common
-    state: present
+      - nfs-common # Required later by Kubernetes to mount persistent network storage
+    state: present # Ensures packages exist; does nothing if they are already installed
