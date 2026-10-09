@@ -22,3 +22,6 @@ inventory.yml
 
 # Local SSH runtime configuration
 ssh_config
+
+# Diagrams
+graph.svg
