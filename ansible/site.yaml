@@ -6,3 +6,4 @@
   roles:
     - os_base
     - storage_poc
+    - k3s_install
