@@ -7,7 +7,7 @@ data "aws_ami" "debian" {
     name   = "name"
     values = ["debian-13-amd64-*"]
   }
-  
+
   filter {
     name   = "architecture"
     values = ["x86_64"]
@@ -45,8 +45,8 @@ resource "aws_instance" "k3s_server" {
 # Additional 10 GB disk (Simulates the future mergerfs/SnapRAID storage pool)
 resource "aws_ebs_volume" "data_volume" {
   availability_zone = aws_instance.k3s_server.availability_zone
-  size              = 10 
-  type              = "gp3" 
+  size              = 10
+  type              = "gp3"
 }
 
 # Attach the EBS volume to the EC2 instance

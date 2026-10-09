@@ -2,7 +2,7 @@
 resource "aws_vpc" "k3s_vpc" {
   cidr_block           = "10.0.0.0/16" # Large private network (65,536 IPs)
   enable_dns_hostnames = true          # Required to assign AWS DNS hostnames to instances
-  tags = { Name = "k3s-poc-vpc" }
+  tags                 = { Name = "k3s-poc-vpc" }
 }
 
 # 2. Internet Gateway (Enables inbound/outbound internet traffic)
