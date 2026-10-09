@@ -1,0 +1,21 @@
+---
+- name: Download K3s installation script
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s-install.sh
+    mode: '0755'
+
+- name: Execute K3s installation script
+  ansible.builtin.command:
+    cmd: /tmp/k3s-install.sh
+  environment:
+    # Tells K3s to use our mounted EBS volume for persistent container data
+    INSTALL_K3S_EXEC: "server --default-local-storage-path /mnt/appdata"
+  args:
+    creates: /usr/local/bin/k3s # Ensures the script only runs if K3s is not yet installed (Idempotency)
+
+- name: Ensure K3s service is running and enabled
+  ansible.builtin.systemd:
+    name: k3s
+    state: started
+    enabled: yes
