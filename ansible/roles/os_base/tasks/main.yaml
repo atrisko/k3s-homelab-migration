@@ -1,0 +1,17 @@
+---
+- name: System-Paketquellen aktualisieren und Upgrades einspielen
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: dist
+    cache_valid_time: 3600
+
+- name: Grundlegende Werkzeuge installieren
+  ansible.builtin.apt:
+    name:
+      - curl
+      - git
+      - htop
+      - jq
+      - open-iscsi
+      - nfs-common
+    state: present
