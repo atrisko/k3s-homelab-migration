@@ -1,17 +1,34 @@
-# Cloud-to-Bare-Metal: K3s Infrastructure PoC
+# Cloud-to-Bare-Metal: K3s Infrastructure & Homelab Migration
 
-This repository contains an automated Proof-of-Concept (PoC) for deploying a **K3s Kubernetes cluster** on **Debian 13 (Trixie)**. 
+This repository contains the end-to-end blueprint and automated implementation for migrating a legacy **Unraid homelab server** to a modern, fully declarative **K3s Kubernetes cluster** running on **Debian 13 (Trixie)**.
 
-The primary architectural goal is achieving strict separation between **infrastructure provisioning (Phase 1)** and **system configuration & workload orchestration (Phase 2 & Phase 3)**, serving as a functional blueprint for a bare-metal homelab migration.
+To eliminate migration risks and guarantee zero downtime for production data, the entire architecture is developed and validated first in an **ephemeral AWS cloud testbed (Terraform + Ansible)** before being deployed onto physical bare-metal hardware (`mergerfs` + `SnapRAID`, SSD mirror pools, and ArgoCD).
+
+---
+
+## 🗺️ Migration Roadmap & Phases
+
+The migration is structured into 8 distinct phases, moving systematically from cloud validation to bare-metal cutover:
+
+| Phase | Milestone | Focus / Tech Stack | Status |
+| :--- | :--- | :--- | :--- |
+| **Phase 1** | **AWS PoC Infrastructure** | Ephemeral testbed via Terraform & dynamic SSH config | ✅ Done |
+| **Phase 2** | **Ansible Baseline & Storage** | Declarative OS hardening, base packages & PoC volume mounts | 🔄 In Progress |
+| **Phase 3** | **K3s Bootstrap & Runtime** | Automated K3s cluster deployment, local-path storage & ingress | ⏳ Planned |
+| **Phase 4** | **CI/CD & Ephemeral Control Node** | GitHub Actions runner as push-based Ansible Control Node | ⏳ Planned |
+| **Phase 5** | **Bare-Metal Foundation** | Physical hardware setup, SSD mirrors, `mergerfs` & `SnapRAID` | ⏳ Planned |
+| **Phase 6** | **Native GitOps Engine** | Pull-based application lifecycle & manifests via ArgoCD | ⏳ Planned |
+| **Phase 7** | **Day-2 Operations & Security** | Automated SnapRAID sync/scrub, etcd/SQLite & appdata backups | ⏳ Planned |
+| **Phase 8** | **Data Migration & Cutover** | Final `rsync` migration from Unraid, DNS cutover & decommissioning | ⏳ Planned |
 
 ---
 
 ## Architecture at a Glance
 
-* **Phase 1 (Infrastructure Provisioning):** Managed via **Terraform** on AWS (ephemeral testbed: VPC, Subnet, Security Group, EC2, EBS) or hypervisor/bare-metal installation.
-* **Phase 2 (OS Baseline & Storage Configuration):** Managed declaratively via **Ansible** (storage formatting, mounting, OS hardening, base dependencies).
-* **Phase 3 (Cluster Bootstrap & Runtime Orchestration):** Deployed via **Ansible** and managed autonomously at runtime by **K3s** (K3s control-plane/agents, Traefik ingress, manifests, Helm charts).
-* **Bare-Metal Portability:** By isolating operating system configuration and Kubernetes deployment into Ansible, the entire Phase 2 & Phase 3 workflow runs identically on physical bare-metal nodes once Debian is installed.
+* **Infrastructure Provisioning (Phase 1 & 5):** Cloud testbeds managed via **Terraform** on AWS; bare-metal target provisioned via base Debian installation and dedicated storage pools.
+* **OS Baseline & Storage Configuration (Phase 2 & 5):** Managed declaratively via **Ansible** (storage formatting, mounting, OS hardening, base dependencies, MergerFS/SnapRAID).
+* **Cluster Bootstrap & Runtime Orchestration (Phase 3 & 6):** Deployed via **Ansible** and managed autonomously at runtime by **K3s** and **ArgoCD** (declarative GitOps for container workloads, Traefik ingress, Helm charts).
+* **Bare-Metal Portability:** By isolating operating system configuration and Kubernetes deployment into Ansible, the entire provisioning workflow runs identically on physical bare-metal nodes once Debian is installed.
 
 ---
 
