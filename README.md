@@ -13,11 +13,11 @@ The migration is structured into 8 distinct phases, moving systematically from c
 | Phase | Milestone | Focus / Tech Stack | Status |
 | :--- | :--- | :--- | :--- |
 | **Phase 1** | **AWS PoC Infrastructure** | Ephemeral testbed via Terraform & dynamic SSH config | ✅ Done |
-| **Phase 2** | **Ansible Baseline & Storage** | Declarative OS hardening, base packages & PoC volume mounts | 🔄 In Progress |
-| **Phase 3** | **K3s Bootstrap & Runtime** | Automated K3s cluster deployment, local-path storage & ingress | ⏳ Planned |
-| **Phase 4** | **CI/CD & Ephemeral Control Node** | GitHub Actions runner as push-based Ansible Control Node | ⏳ Planned |
+| **Phase 2** | **Ansible Baseline & Storage** | Declarative OS hardening, base packages & PoC volume mounts | ✅ Done |
+| **Phase 3** | **K3s Bootstrap & Runtime** | Automated K3s cluster deployment, local-path storage & ingress | ✅ Done |
+| **Phase 4** | **Native GitOps Engine** | Pull-based application lifecycle & manifests via ArgoCD | 🏁 In Progress |
 | **Phase 5** | **Bare-Metal Foundation** | Physical hardware setup, SSD mirrors, `mergerfs` & `SnapRAID` | ⏳ Planned |
-| **Phase 6** | **Native GitOps Engine** | Pull-based application lifecycle & manifests via ArgoCD | ⏳ Planned |
+| **Phase 6** | **CI/CD & Ephemeral Control Node** | GitHub Actions runner as push-based Ansible Control Node | ⏳ Planned |
 | **Phase 7** | **Day-2 Operations & Security** | Automated SnapRAID sync/scrub, etcd/SQLite & appdata backups | ⏳ Planned |
 | **Phase 8** | **Data Migration & Cutover** | Final `rsync` migration from Unraid, DNS cutover & decommissioning | ⏳ Planned |
 
@@ -75,8 +75,9 @@ flowchart LR
 ### 1. Architecture & Ephemeral Control Node
 * **Push-based GitOps:** The GitHub Actions runner acts as a disposable, ephemeral Ansible Control Node. Changes pushed to the repository automatically trigger the desired configuration state against the target host.
 * **Separation of Concerns:**
-  * **Ansible (Declarative Configuration):** Enforces desired system state idempotently (OS hardening, disk partitioning/mounting, kernel parameters, K3s installation, baseline manifests).
+  * **Ansible (Declarative Configuration):** Enforces desired system state idempotently (OS hardening, disk partitioning/mounting, kernel parameters, K3s installation).
   * **K3s (Autonomous Runtime):** Manages continuous container lifecycle, self-healing, health probes, service discovery, and Traefik ingress routing independently of CI/CD runtime.
+  * **ArgoCD (Pull-based GitOps):** Runs as a continuous reconciliation controller within the K3s cluster. It monitors the `kubernetes/**` directory in the repository and autonomously synchronizes the desired state of all applications directly via the Kubernetes API, eliminating the need for external runner access to the cluster.
 
 ### 2. Secret- & Key-Management
 Security adheres to the **Principle of Least Privilege (PoLP)** without persisting credentials on runners:
