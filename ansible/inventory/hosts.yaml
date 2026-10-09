@@ -1,0 +1,7 @@
+all:
+  children:
+    k3s_cluster:
+      hosts:
+        aws-k3s-poc: 
+          ansible_user: admin 
+          ansible_ssh_common_args: '-F ../ssh_config'
