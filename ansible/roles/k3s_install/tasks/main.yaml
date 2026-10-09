@@ -19,3 +19,24 @@
     name: k3s
     state: started
     enabled: yes
+
+
+- name: Create ArgoCD namespace manifest for K3s auto-deploy
+  ansible.builtin.copy:
+    dest: /var/lib/rancher/k3s/server/manifests/argocd-namespace.yaml
+    content: |
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: argocd
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Download ArgoCD install manifest for K3s auto-deploy
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+    dest: /var/lib/rancher/k3s/server/manifests/argocd-install.yaml
+    owner: root
+    group: root
+    mode: '0644'
