@@ -4,4 +4,4 @@ all:
       hosts:
         aws-k3s-poc: 
           ansible_user: admin 
-          ansible_ssh_common_args: '-F ../ssh_config'
+          ansible_ssh_common_args: '-F ../terraform/aws-poc/ssh_config'
