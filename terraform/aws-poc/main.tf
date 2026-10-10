@@ -27,7 +27,7 @@ resource "aws_key_pair" "k3s_key" {
 # The virtual machine (K3s Node)
 resource "aws_instance" "k3s_server" {
   ami                    = data.aws_ami.debian.id
-  instance_type          = "t3.micro"
+  instance_type          = "t3.medium"
   subnet_id              = aws_subnet.public_subnet.id
   vpc_security_group_ids = [aws_security_group.k3s_sg.id]
 
