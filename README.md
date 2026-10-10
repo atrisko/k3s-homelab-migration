@@ -147,9 +147,10 @@ Security adheres to the **Principle of Least Privilege (PoLP)**:
 
 ### Prerequisites
 
-* AWS CLI installed and configured (`~/.aws/credentials`)
+* AWS CLI installed and configured (`~/.aws/credentials`, configured with `[homelab]` profile by default)
 * Terraform >= 1.5.0
-* Dedicated SSH key pair (default: `~/.ssh/id_ed25519_aws_homelab.pub`)
+* Ansible >= 2.15.0
+* Dedicated SSH key pair (default: `~/.ssh/id_ed25519_aws_poc.pub`)
 
 ### Run the PoC Cycle
 
@@ -165,9 +166,16 @@ Security adheres to the **Principle of Least Privilege (PoLP)**:
    ssh -F ssh_config aws-k3s-poc
    ```
 
-3. **Teardown & Cleanup:**
+3. **Provision OS Baseline, Storage & K3s (Phase 2 & 3):**
+   ```bash
+   cd ../../ansible
+   ansible-playbook -i inventory/hosts.yaml site.yaml
+   ```
+
+4. **Teardown & Cleanup:**
    To avoid ongoing cloud costs when finished testing:
    ```bash
+   cd ../terraform/aws-poc
    terraform destroy
    ```
 

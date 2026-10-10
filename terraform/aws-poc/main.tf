@@ -1,4 +1,4 @@
-# Fetch the latest Debian 12 (Bookworm) image from the official Debian project
+# Fetch the latest Debian 13 (Trixie) image from the official Debian project
 data "aws_ami" "debian" {
   most_recent = true
   owners      = ["136693071363"] # Official Debian AWS account ID
@@ -62,7 +62,7 @@ resource "local_file" "ssh_config" {
     Host aws-k3s-poc
         HostName ${aws_instance.k3s_server.public_ip}
         User admin
-        IdentityFile ${pathexpand(var.ssh_public_key_path)}
+        IdentityFile ${trimsuffix(pathexpand(var.ssh_public_key_path), ".pub")}
         IdentitiesOnly yes
         StrictHostKeyChecking no
         UserKnownHostsFile /dev/null

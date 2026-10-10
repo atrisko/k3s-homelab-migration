@@ -42,18 +42,6 @@
       # Storage: Dedicated path for Persistent Volumes
       default-local-storage-path: "/mnt/appdata"
 
-- name: Execute K3s installation script
-  ansible.builtin.command:
-    cmd: /tmp/k3s-install.sh
-  args:
-    creates: /usr/local/bin/k3s
-
-- name: Ensure K3s service is running and enabled
-  ansible.builtin.systemd:
-    name: k3s
-    state: started
-    enabled: yes
-
 - name: Ensure K3s auto-deploy manifests directory exists
   ansible.builtin.file:
     path: /var/lib/rancher/k3s/server/manifests
@@ -82,3 +70,15 @@
     owner: root
     group: root
     mode: '0644'
+
+- name: Execute K3s installation script
+  ansible.builtin.command:
+    cmd: /tmp/k3s-install.sh
+  args:
+    creates: /usr/local/bin/k3s
+
+- name: Ensure K3s service is running and enabled
+  ansible.builtin.systemd:
+    name: k3s
+    state: started
+    enabled: yes

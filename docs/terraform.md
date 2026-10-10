@@ -40,7 +40,7 @@ Instead of hardcoding AMI IDs, Terraform queries the official Debian project acc
 The deployment deliberately separates root storage from application data:
 
 1. **Root Block Device (8 GiB):** Ephemeral root volume holding the base Debian OS and system packages.
-2. **Data Volume (`aws_ebs_volume.data_volume` - 10 GiB, gp3):** Dedicated block storage mounted at `/dev/sdf`.
+2. **Data Volume (`aws_ebs_volume.data_volume` - 10 GiB, gp3):** Dedicated block storage attached at `/dev/sdf` (exposed to the Debian Nitro guest kernel as `/dev/nvme1n1`).
 3. **Volume Attachment (`aws_volume_attachment.ebs_att`):** Manages the logical attachment between EC2 and EBS.
 
 > **Lifecycle Strategy:** For this PoC, `prevent_destroy` is intentionally omitted. Destroying the EBS volume alongside the instance forces Ansible to handle unformatted, raw disk initialization and filesystem creation (`ext4`) on every deployment, ensuring complete idempotency.
@@ -57,7 +57,7 @@ To adhere to the **Principle of Least Privilege (PoLP)** and isolate identity bo
 
 2. **Automated Runtime SSH Config (`local_file.ssh_config`):**
    * Because EC2 instances receive dynamic public IPs across `apply`/`destroy` cycles, Terraform automatically generates a local OpenSSH client configuration file (`ssh_config`).
-   * The generated file maps the alias `aws-k3s-poc` to the newly provisioned public IP, disables host-key collisions (`UserKnownHostsFile /dev/null`, `StrictHostKeyChecking no`), and enforces `IdentitiesOnly yes`.
+   * The generated file maps the alias `aws-k3s-poc` to the newly provisioned public IP, disables host-key collisions (`UserKnownHostsFile /dev/null`, `StrictHostKeyChecking no`), points `IdentityFile` to the corresponding private key (`trimsuffix(..., ".pub")`), and enforces `IdentitiesOnly yes`.
    * **Security Notice:** The generated `ssh_config` file contains local runtime data and is excluded from source control via `.gitignore`.
 
 ### Connecting to the Host
