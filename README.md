@@ -127,7 +127,7 @@ Security adheres to the **Principle of Least Privilege (PoLP)**:
 ├── README.md               # Project entry point and high-level overview
 ├── docs/                   # Modular architecture and technical documentation
 │   ├── terraform.md        # Detailed guide for AWS provisioning & lifecycle
-│   └── ansible.md          # OS hardening, storage mounts, and K3s rollout (planned)
+│   └── ansible.md          # OS baseline, storage orchestration & dual-stack K3s rollout
 ├── terraform/
 │   └── aws-poc/            # Infrastructure-as-Code definitions (VPC, EC2, EBS)
 └── ansible/                # Playbooks, roles, and inventory (in progress)
@@ -138,8 +138,8 @@ Security adheres to the **Principle of Least Privilege (PoLP)**:
 ## Detailed Documentation
 
 * [Terraform AWS Provisioning & Lifecycle Guide](docs/terraform.md)
+* [Ansible Configuration & K3s Provisioning Guide](docs/ansible.md)
 * Architecture Decisions & Network Topology (`docs/architecture.md` - coming soon)
-* Ansible Configuration & Storage Orchestration (`docs/ansible.md` - coming soon)
 
 ---
 
