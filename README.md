@@ -2,13 +2,13 @@
 
 This repository contains the end-to-end blueprint and automated implementation for migrating a legacy **Unraid homelab server** to a modern, fully declarative **K3s Kubernetes cluster** running on **Debian 13 (Trixie)**.
 
-To eliminate migration risks and guarantee zero downtime for production data, the entire architecture is developed and validated first in an **ephemeral AWS cloud testbed (Terraform + Ansible)** before being deployed onto physical bare-metal hardware (`mergerfs` + `SnapRAID`, SSD mirror pools, and ArgoCD).
+To eliminate migration risks and guarantee zero downtime for production data, the entire architecture is developed and validated through a 3-stage pipeline: first in an **ephemeral AWS cloud testbed (Terraform + Ansible)**, followed by a **RemoteLab VM** (for real-world ingress, DNS, and SSL validation with public IPs), before finally being deployed onto physical **bare-metal hardware** (`mergerfs` + `SnapRAID`, SSD mirror pools, and ArgoCD).
 
 ---
 
 ## 🗺️ Migration Roadmap & Phases
 
-The migration is structured into 8 core phases plus a dedicated pre-cutover testing gate (Phase 7.5), moving systematically from cloud validation to bare-metal cutover:
+The migration is structured into 8 core phases plus dedicated staging and pre-cutover gates (Phase 4.5 & Phase 7.5), moving systematically from cloud validation to bare-metal cutover:
 
 | Phase | Milestone | Focus / Tech Stack | Status |
 | :--- | :--- | :--- | :--- |
@@ -16,6 +16,7 @@ The migration is structured into 8 core phases plus a dedicated pre-cutover test
 | **Phase 2** | **Ansible Baseline Setup** | Declarative OS hardening, base packages & PoC volume mounts | ✅ Done |
 | **Phase 3** | **K3s Bootstrap & Runtime** | K3s installation, local-path storage to app storage & test workload | 🏁 In Progress |
 | **Phase 4** | **GitOps & CI/CD (GitHub Actions)** | Push-based Ansible Day-1 automation, linting & clean rebuild test | ⏳ Planned |
+| **Phase 4.5** | **RemoteLab (Staging Environment)** | Hyper-V VM, public IPs, Traefik Ingress routing, SSL certs & DNS validation | ⏳ Planned |
 | **Phase 5** | **Bare-Metal Foundation** | Physical hardware, System-SSD, SSD-Mirror, `mergerfs`/`SnapRAID` & local runner | ⏳ Planned |
 | **Phase 6** | **K3s Native GitOps (ArgoCD)** | In-cluster ArgoCD deployment, repo integration & pull-based workload sync | ⏳ Planned |
 | **Phase 7** | **Day-2 Operations & Security** | Automated SnapRAID sync/scrub timers, K3s state backup & restic appdata backup | ⏳ Planned |
@@ -177,6 +178,13 @@ Security adheres to the **Principle of Least Privilege (PoLP)**:
    ```bash
    cd ../terraform/aws-poc
    terraform destroy
+   ```
+
+5. **Stage to RemoteLab (Phase 4.5):**
+   After validating in the cloud, transition to the staging environment by simply switching the Ansible inventory (`-i inventory/remotelab.yaml`) to roll out the identical baseline and K3s stack onto a Hyper-V VM with a public IP:
+   ```bash
+   cd ../../ansible
+   ansible-playbook -i inventory/remotelab.yaml site.yaml
    ```
 
 ---
