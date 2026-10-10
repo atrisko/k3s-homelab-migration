@@ -5,14 +5,48 @@
     dest: /tmp/k3s-install.sh
     mode: '0755'
 
+- name: Ensure K3s config directory exists
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Ensure Node has an IPv6 ULA assigned to its primary interface (Island-Setup)
+  ansible.builtin.command:
+    cmd: "ip -6 addr add fd42::1/64 dev {{ ansible_facts['default_ipv4']['interface'] }}"
+  register: ipv6_add
+  # Ignore error if the IP is already present (checks for common iproute2 error strings)
+  failed_when: 
+    - ipv6_add.rc != 0
+    - "'File exists' not in ipv6_add.stderr"
+    - "'address already assigned' not in ipv6_add.stderr"
+  changed_when: ipv6_add.rc == 0
+
+- name: Write K3s config.yaml for Dual-Stack and Storage
+  ansible.builtin.copy:
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      # Dual-Stack: IPv4 (10.42.x.x) / IPv6 ULAs (fd42::)
+      cluster-cidr: "10.42.0.0/16,fd42::/56"
+      service-cidr: "10.43.0.0/16,fd43::/112"
+      flannel-ipv6-masq: true
+      
+      # Force the node to use both IPs (dynamic IPv4 + static ULA) using modern facts syntax
+      node-ip: "{{ ansible_facts['default_ipv4']['address'] }},fd42::1"
+      
+      # Storage: Dedicated path for Persistent Volumes
+      default-local-storage-path: "/mnt/appdata"
+
 - name: Execute K3s installation script
   ansible.builtin.command:
     cmd: /tmp/k3s-install.sh
-  environment:
-    # Tells K3s to use our mounted EBS volume for persistent container data
-    INSTALL_K3S_EXEC: "server --default-local-storage-path /mnt/appdata"
   args:
-    creates: /usr/local/bin/k3s # Ensures the script only runs if K3s is not yet installed (Idempotency)
+    creates: /usr/local/bin/k3s
 
 - name: Ensure K3s service is running and enabled
   ansible.builtin.systemd:
@@ -20,18 +54,26 @@
     state: started
     enabled: yes
 
+- name: Ensure K3s auto-deploy manifests directory exists
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/server/manifests
+    state: directory
+    owner: root
+    group: root
+    # 0700 is the required secure permission for this internal K3s folder
+    mode: '0700'
 
 - name: Create ArgoCD namespace manifest for K3s auto-deploy
   ansible.builtin.copy:
     dest: /var/lib/rancher/k3s/server/manifests/argocd-namespace.yaml
+    owner: root
+    group: root
+    mode: '0644'
     content: |
       apiVersion: v1
       kind: Namespace
       metadata:
         name: argocd
-    owner: root
-    group: root
-    mode: '0644'
 
 - name: Download ArgoCD install manifest for K3s auto-deploy
   ansible.builtin.get_url:
