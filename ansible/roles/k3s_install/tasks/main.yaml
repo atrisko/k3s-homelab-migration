@@ -82,3 +82,32 @@
     name: k3s
     state: started
     enabled: yes
+
+- name: Create ArgoCD Application to link GitHub repository
+  ansible.builtin.copy:
+    dest: /var/lib/rancher/k3s/server/manifests/argocd-github-link.yaml
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: test-workload
+        namespace: argocd
+      spec:
+        project: default
+        source:
+          # Note: If your repo is private, we will need to add a credential/token later. 
+          # For a public repo, this works out of the box.
+          repoURL: 'https://github.com/atrisko/k3s-homelab-migration.git'
+          path: 'k8s/test-workload'
+          targetRevision: HEAD
+        destination:
+          server: 'https://kubernetes.default.svc'
+          namespace: default
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
+    
