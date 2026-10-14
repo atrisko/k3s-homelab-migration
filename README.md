@@ -127,6 +127,7 @@ Security adheres to the **Principle of Least Privilege (PoLP)**:
 .
 ├── README.md               # Project entry point and high-level overview
 ├── docs/                   # Modular architecture and technical documentation
+│   ├── adr/                # Architecture Decision Records (ADRs)
 │   ├── terraform.md        # Detailed guide for AWS provisioning & lifecycle
 │   └── ansible.md          # OS baseline, storage orchestration & dual-stack K3s rollout
 ├── terraform/
@@ -138,9 +139,9 @@ Security adheres to the **Principle of Least Privilege (PoLP)**:
 
 ## Detailed Documentation
 
+* [Architecture Decision Records (ADRs)](docs/adr/README.md)
 * [Terraform AWS Provisioning & Lifecycle Guide](docs/terraform.md)
 * [Ansible Configuration & K3s Provisioning Guide](docs/ansible.md)
-* Architecture Decisions & Network Topology (`docs/architecture.md` - coming soon)
 
 ---
 
