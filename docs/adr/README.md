@@ -25,6 +25,8 @@ New ADRs start as `Accepted`. Later they may become:
 | ADR | Title | Status |
 | :--- | :--- | :--- |
 | [0001](0001-ip-address-plan.md) | IP Address Plan (Dual-Stack) | Accepted |
+| [0002](0002-remotelab-ansible-control-node.md) | RemoteLab Ansible Control Node (Dedicated VM vs. WSL 2) | Accepted |
+| [0003](0003-caddy-instance-in-vm-as-reverse-proxy.md) | Caddy Instance in VM as Reverse Proxy | Accepted |
 
 ## Template
 
