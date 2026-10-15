@@ -103,6 +103,30 @@
       - network
       - all_ipv6_addresses
 
+- name: Configure hardened OpenSSH daemon settings
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf
+    content: |
+      # OpenSSH Daemon Hardening Baseline (First match wins)
+      PermitRootLogin no
+      PasswordAuthentication no
+      PubkeyAuthentication yes
+      KbdInteractiveAuthentication no
+      MaxAuthTries 3
+      X11Forwarding no
+      LoginGraceTime 30
+      ClientAliveInterval 300
+      ClientAliveCountMax 2
+      AllowAgentForwarding no
+      AllowUsers {{ ansible_user }}
+
+    owner: root
+    group: root
+    mode: '0644'
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart ssh
+
+
 
 
 
