@@ -151,9 +151,13 @@
       # Kernel Memory & Address Protection
       kernel.dmesg_restrict = 1
       kernel.kptr_restrict = 2
+      kernel.sysrq = 0                 
+      
+      # Magic SysRq Keys disabled
       fs.suid_dumpable = 0
       fs.protected_hardlinks = 1
       fs.protected_symlinks = 1
+
 
       # Resource Limits for Container Workloads
       fs.inotify.max_user_watches = 524288
@@ -211,6 +215,20 @@
     name: systemd-timesyncd
     state: started
     enabled: yes
+
+- name: Configure hardened sudo defaults
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/00-hardening
+    content: |
+      # Prevent terminal hijacking via TIOCSTI ioctl injection
+      Defaults use_pty
+      # Log administrative commands for auditability
+      Defaults logfile="/var/log/sudo.log"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: '/usr/sbin/visudo -cf %s'
+
 
 
 
