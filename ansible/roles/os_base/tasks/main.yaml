@@ -10,6 +10,7 @@
       - open-iscsi
       - unattended-upgrades
       - apt-listchanges
+      - systemd-timesyncd
       - nfs-common # Required later by Kubernetes to mount persistent network storage
     update_cache: yes
     cache_valid_time: 3600 # Prevents running 'apt-get update' again if already run within the last hour
@@ -204,6 +205,13 @@
     owner: root
     group: root
     mode: '0644'
+
+- name: Ensure systemd-timesyncd is enabled and running
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    state: started
+    enabled: yes
+
 
 
 
