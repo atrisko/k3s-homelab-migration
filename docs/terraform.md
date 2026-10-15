@@ -20,9 +20,9 @@ Rather than relying on the AWS Default VPC, the environment provisions an isolat
 ### Stateful Firewall (`aws_security_group.k3s_sg`)
 
 * **Ingress:**
-  * Port `22` (TCP): SSH access for remote management and Ansible execution.
-  * Ports `80` & `443` (TCP): HTTP/HTTPS traffic targeting the Traefik ingress controller.
-  * Port `6443` (TCP): Kubernetes API server access for remote `kubectl`.
+  * Port `22` (TCP): SSH access for remote management and Ansible execution, restricted dynamically to the operator's public IP (`checkip.amazonaws.com`) or `var.admin_cidr`.
+  * Ports `80` & `443` (TCP): Public HTTP/HTTPS traffic targeting the Traefik ingress controller (`0.0.0.0/0`).
+  * Port `6443` (TCP): Kubernetes API server access for remote `kubectl`, restricted to the operator's public IP (`local.admin_cidr`).
 * **Egress:**
   * Protocol `-1` across all ports to allow package updates (`apt`), container runtime retrieval, and image pulling.
   * *Note on Stateful Inspection:* Return traffic for established outbound requests is allowed automatically by AWS connection tracking.

@@ -31,7 +31,16 @@ resource "aws_route_table_association" "public_assoc" {
   route_table_id = aws_route_table.public_rt.id
 }
 
-# 5. Firewall (Security Group)
+# 5. Dynamic Operator IP Discovery
+data "http" "my_public_ip" {
+  url = "https://checkip.amazonaws.com"
+}
+
+locals {
+  admin_cidr = var.admin_cidr != null ? var.admin_cidr : "${chomp(data.http.my_public_ip.response_body)}/32"
+}
+
+# 6. Firewall (Security Group)
 resource "aws_security_group" "k3s_sg" {
   name        = "k3s_allow_traffic"
   description = "Allow SSH, Web traffic, and K8s API access"
@@ -39,31 +48,35 @@ resource "aws_security_group" "k3s_sg" {
 
   # Inbound traffic (Ingress)
   ingress {
+    description = "SSH administrative access from operator IP"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # SSH from anywhere. In production, restrict this to your own IP!
+    cidr_blocks = [local.admin_cidr]
   }
 
   ingress {
+    description = "HTTP for Traefik ingress"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # HTTP for Traefik
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
+    description = "HTTPS for Traefik ingress"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # HTTPS for Traefik
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
+    description = "Kubernetes API access from operator IP"
     from_port   = 6443
     to_port     = 6443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # K8s API port for local kubectl access
+    cidr_blocks = [local.admin_cidr]
   }
 
   # Outbound traffic (Egress) - Allow all outbound traffic (e.g., for OS updates, image pulls)
