@@ -13,16 +13,11 @@
     group: root
     mode: '0755'
 
-- name: Ensure Node has an IPv6 ULA assigned to its primary interface (Island-Setup)
-  ansible.builtin.command:
-    cmd: "ip -6 addr add fd42::1/64 dev {{ ansible_facts['default_ipv4']['interface'] }}"
-  register: ipv6_add
-  # Ignore error if the IP is already present (checks for common iproute2 error strings)
-  failed_when: 
-    - ipv6_add.rc != 0
-    - "'File exists' not in ipv6_add.stderr"
-    - "'address already assigned' not in ipv6_add.stderr"
-  changed_when: ipv6_add.rc == 0
+- name: Verify that the node has its ULA from ADR-0001
+  ansible.builtin.assert:
+    that:
+      - (ansible_facts['all_ipv6_addresses'] | default([])) | select('match', '^fd85:cc6d:b16f:30::') | list | length > 0
+    fail_msg: "Node has no ULA from fd85:cc6d:b16f:30::/64. Configure networking (os_base) first."
 
 - name: Write K3s config.yaml for Dual-Stack and Storage
   ansible.builtin.copy:
@@ -31,13 +26,13 @@
     group: root
     mode: '0644'
     content: |
-      # Dual-Stack: IPv4 (10.42.x.x) / IPv6 ULAs (fd42::)
-      cluster-cidr: "10.42.0.0/16,fd42::/56"
-      service-cidr: "10.43.0.0/16,fd43::/112"
+      # Dual-Stack: IPv4 (10.42.x.x) / IPv6 ULAs (fd85:cc6d:b16f::) according to ADR-0001
+      cluster-cidr: "10.42.0.0/16,fd85:cc6d:b16f:4200::/56"
+      service-cidr: "10.43.0.0/16,fd85:cc6d:b16f:4300::/112"
       flannel-ipv6-masq: true
       
       # Force the node to use both IPs (dynamic IPv4 + static ULA) using modern facts syntax
-      node-ip: "{{ ansible_facts['default_ipv4']['address'] }},fd42::1"
+      node-ip: "{{ ansible_facts['default_ipv4']['address'] }},{{ ansible_facts['all_ipv6_addresses'] | select('match', '^fd85:cc6d:b16f:30::') | first }}"
       
       # Storage: Dedicated path for Persistent Volumes
       default-local-storage-path: "/mnt/appdata"

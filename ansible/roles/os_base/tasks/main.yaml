@@ -15,3 +15,28 @@
       - open-iscsi
       - nfs-common # Required later by Kubernetes to mount persistent network storage
     state: present # Ensures packages exist; does nothing if they are already installed
+
+- name: Ensure persistent IPv6 ULA configuration exists in Debian
+  ansible.builtin.copy:
+    dest: /etc/network/interfaces.d/60-ula.cfg
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      # Persistent ULA according to ADR-0001
+      iface {{ ansible_facts['default_ipv4']['interface'] }} inet6 static
+          address fd85:cc6d:b16f:30::10/64
+          accept_ra 2
+          autoconf 1
+
+- name: Apply ULA immediately (runtime)
+  ansible.builtin.command:
+    cmd: "ip -6 addr replace fd85:cc6d:b16f:30::10/64 dev {{ ansible_facts['default_ipv4']['interface'] }}"
+  when: "'fd85:cc6d:b16f:30::10' not in (ansible_facts['all_ipv6_addresses'] | default([]))"
+
+- name: Refresh network facts after IPv6 change
+  ansible.builtin.setup:
+    gather_subset:
+      - network
+      - all_ipv6_addresses
+
