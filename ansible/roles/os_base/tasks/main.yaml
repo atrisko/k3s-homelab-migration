@@ -1,9 +1,4 @@
 ---
-- name: Update system package cache and perform dist-upgrade
-  ansible.builtin.apt:
-    update_cache: yes
-    upgrade: dist
-    cache_valid_time: 3600 # Prevents running 'apt-get update' again if already run within the last hour
 
 - name: Install essential system tools
   ansible.builtin.apt:
@@ -13,8 +8,76 @@
       - htop
       - jq
       - open-iscsi
+      - unattended-upgrades
+      - apt-listchanges
       - nfs-common # Required later by Kubernetes to mount persistent network storage
+    update_cache: yes
+    cache_valid_time: 3600 # Prevents running 'apt-get update' again if already run within the last hour
     state: present # Ensures packages exist; does nothing if they are already installed
+
+- name: Enable unattended-upgrades
+  ansible.builtin.debconf:
+    name: unattended-upgrades
+    question: unattended-upgrades/enable_auto_updates
+    value: "true"
+    vtype: boolean
+
+# Configure which updates to apply automatically
+- name: Configure unattended-upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    content: |
+      // Automatically install security updates only
+      Unattended-Upgrade::Origins-Pattern {
+          "origin=Debian,codename=${distro_codename},label=Debian-Security";
+      };
+
+      // Packages to never update automatically
+      Unattended-Upgrade::Package-Blacklist {
+          "linux-image*";
+          "linux-headers*";
+      };
+
+      // Send email notifications about updates
+      //Unattended-Upgrade::Mail "alex.trisko@gmail.com";
+      //Unattended-Upgrade::MailReport "on-change";
+
+      // Automatically remove unused dependencies
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+      Unattended-Upgrade::Remove-New-Unused-Dependencies "true";
+
+      // Automatically reboot if required (set time for maintenance window)
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "03:00";
+
+      // Limit download bandwidth (in kb/sec, 0 = unlimited)
+      Acquire::http::Dl-Limit "0";
+    mode: '0644'
+    owner: root
+    group: root
+
+# Configure how often updates are checked and applied
+- name: Configure auto-update schedule
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Download-Upgradeable-Packages "1";
+      APT::Periodic::AutocleanInterval "7";
+      APT::Periodic::Unattended-Upgrade "1";
+    mode: '0644'
+    owner: root
+    group: root
+
+- name: Ensure apt daily upgrade timers are enabled and running
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  loop:
+    - apt-daily.timer
+    - apt-daily-upgrade.timer
+
 
 - name: Ensure persistent IPv6 ULA configuration exists in Debian
   ansible.builtin.copy:
@@ -39,4 +102,7 @@
     gather_subset:
       - network
       - all_ipv6_addresses
+
+
+
 
