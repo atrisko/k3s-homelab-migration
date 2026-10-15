@@ -185,6 +185,29 @@
     mode: '0644'
   notify: restart systemd-journald
 
+- name: Blacklist legacy and unused kernel modules
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/99-hardening-blacklist.conf
+    content: |
+      # Disable uncommon network protocols (CIS Benchmark)
+      install dccp /bin/true
+      install rds /bin/true
+      install tipc /bin/true
+
+      # Disable obsolete filesystems
+      install cramfs /bin/true
+      install freevxfs /bin/true
+      install jffs2 /bin/true
+      install hfs /bin/true
+      install hfsplus /bin/true
+      install udf /bin/true
+    owner: root
+    group: root
+    mode: '0644'
+
+
+
+
 
 
 
