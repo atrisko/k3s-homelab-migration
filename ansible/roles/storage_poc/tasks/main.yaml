@@ -2,7 +2,7 @@
 - name: Create ext4 filesystem on the AWS EBS volume
   community.general.filesystem:
     fstype: ext4
-    dev: /dev/nvme1n1 # Update this if 'lsblk' shows a different device name (e.g., /dev/xvdf)
+    dev: "{{ data_disk_device }}"
 
 - name: Create mount point directory for K3s app data
   ansible.builtin.file:
@@ -13,6 +13,7 @@
 - name: Add volume to /etc/fstab and mount it
   ansible.posix.mount:
     path: /mnt/appdata
-    src: /dev/nvme1n1 # Must match the device name used above
+    src: "{{ data_disk_device }}"
     fstype: ext4
+    opts: defaults,nofail
     state: mounted # Ensures the volume is both currently mounted AND added to fstab for reboot persistence
