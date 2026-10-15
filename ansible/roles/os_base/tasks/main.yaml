@@ -162,6 +162,30 @@
     mode: '0644'
   notify: reload sysctl
 
+- name: Ensure systemd-journald drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Configure journald log volume limits
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/00-limits.conf
+    content: |
+      [Journal]
+      # Cap total disk space used by systemd journal to prevent K8s DiskPressure
+      SystemMaxUse=1G
+      SystemMaxFileSize=100M
+      MaxRetentionSec=1month
+      ForwardToSyslog=no
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart systemd-journald
+
+
 
 
 
