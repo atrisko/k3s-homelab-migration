@@ -19,6 +19,19 @@
       - (ansible_facts['all_ipv6_addresses'] | default([])) | select('match', '^fd85:cc6d:b16f:30::') | list | length > 0
     fail_msg: "Node has no ULA from fd85:cc6d:b16f:30::/64. Configure networking (os_base) first."
 
+- name: Refresh mount facts after storage_poc role execution
+  ansible.builtin.setup:
+    gather_subset:
+      - '!all'
+      - 'mounts'
+
+- name: Verify that /mnt/appdata is an active mountpoint to prevent root-disk overflow
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['mounts'] | selectattr('mount', 'equalto', '/mnt/appdata') | list | length > 0
+    fail_msg: "/mnt/appdata is not mounted! K3s local-path provisioner would write directly to the root disk."
+
+
 - name: Write K3s config.yaml for Dual-Stack and Storage
   ansible.builtin.copy:
     dest: /etc/rancher/k3s/config.yaml

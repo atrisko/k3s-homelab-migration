@@ -1,4 +1,13 @@
 ---
+- name: Verify data_disk_device is defined before disk operations
+  ansible.builtin.assert:
+    that:
+      - data_disk_device is defined
+      - data_disk_device | length > 0
+    fail_msg: >
+      'data_disk_device' is undefined. Set it in the inventory (e.g. via persistent /dev/disk/by-id/... path)
+      or via 'terraform -chdir=terraform/aws-poc output -raw data_disk_device'.
+
 - name: Create ext4 filesystem on the AWS EBS volume
   community.general.filesystem:
     fstype: ext4

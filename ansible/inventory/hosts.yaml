@@ -5,3 +5,6 @@ all:
         aws-k3s-poc: 
           ansible_user: admin 
           ansible_ssh_common_args: '-F ../terraform/aws-poc/ssh_config'
+          # AWS Nitro NVMe device ID format: /dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_<vol_id_without_hyphen>
+          # Populated from: terraform -chdir=../terraform/aws-poc output -raw data_disk_device
+          data_disk_device: "/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_vol00000000000000000"
