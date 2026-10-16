@@ -27,6 +27,10 @@ New ADRs start as `Accepted`. Later they may become:
 | [0001](0001-ip-address-plan.md) | IP Address Plan (Dual-Stack) | Accepted |
 | [0002](0002-remotelab-ansible-control-node.md) | RemoteLab Ansible Control Node (Dedicated VM vs. WSL 2) | Accepted |
 | [0003](0003-caddy-instance-in-vm-as-reverse-proxy.md) | Caddy Instance in VM as Reverse Proxy | Accepted |
+| [0004](0004-separation-day-1-provisioning-and-os-patch-management.md) | Separation between Day-1 Provisioning and OS Patch Management | Accepted |
+| [0005](0005-loose-mode-rp-filter-for-cni-compatibility.md) | Loose-Mode Reverse Path Filtering (rp_filter) for Kubernetes CNI Compatibility | Accepted |
+| [0006](0006-dual-track-update-and-lifecycle-strategy.md) | Dual-Track Update and Lifecycle Strategy | Accepted |
+
 
 ## Template
 
