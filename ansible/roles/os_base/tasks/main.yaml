@@ -129,39 +129,8 @@
 
 - name: Configure hardened sysctl parameters for Kubernetes host
   ansible.builtin.copy:
+    src: 99-kubernetes-hardening.conf
     dest: /etc/sysctl.d/99-kubernetes-hardening.conf
-    content: |
-      # Network Anti-Spoofing & ICMP (Loose mode for CNI/Flannel compatibility)
-      net.ipv4.conf.all.rp_filter = 2
-      net.ipv4.conf.default.rp_filter = 2
-      net.ipv4.conf.all.accept_redirects = 0
-      net.ipv4.conf.default.accept_redirects = 0
-      net.ipv6.conf.all.accept_redirects = 0
-      net.ipv6.conf.default.accept_redirects = 0
-      net.ipv4.conf.all.send_redirects = 0
-      net.ipv4.conf.default.send_redirects = 0
-      net.ipv4.conf.all.accept_source_route = 0
-      net.ipv6.conf.all.accept_source_route = 0
-      net.ipv4.tcp_syncookies = 1
-
-      # Required for Kubernetes & Flannel routing (IPv4 + IPv6 ULA)
-      net.ipv4.ip_forward = 1
-      net.ipv6.conf.all.forwarding = 1
-
-      # Kernel Memory & Address Protection
-      kernel.dmesg_restrict = 1
-      kernel.kptr_restrict = 2
-      kernel.sysrq = 0                 
-      
-      # Magic SysRq Keys disabled
-      fs.suid_dumpable = 0
-      fs.protected_hardlinks = 1
-      fs.protected_symlinks = 1
-
-
-      # Resource Limits for Container Workloads
-      fs.inotify.max_user_watches = 524288
-      fs.inotify.max_user_instances = 8192
     owner: root
     group: root
     mode: '0644'
@@ -192,20 +161,8 @@
 
 - name: Blacklist legacy and unused kernel modules
   ansible.builtin.copy:
+    src: 99-hardening-blacklist.conf
     dest: /etc/modprobe.d/99-hardening-blacklist.conf
-    content: |
-      # Disable uncommon network protocols (CIS Benchmark)
-      install dccp /bin/true
-      install rds /bin/true
-      install tipc /bin/true
-
-      # Disable obsolete filesystems
-      install cramfs /bin/true
-      install freevxfs /bin/true
-      install jffs2 /bin/true
-      install hfs /bin/true
-      install hfsplus /bin/true
-      install udf /bin/true
     owner: root
     group: root
     mode: '0644'
