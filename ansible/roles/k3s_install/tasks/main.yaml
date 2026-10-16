@@ -46,25 +46,25 @@
     # 0700 is the required secure permission for this internal K3s folder
     mode: '0700'
 
-- name: Create ArgoCD namespace manifest for K3s auto-deploy
+- name: Deploy ArgoCD HelmChart manifest for K3s auto-deploy
   ansible.builtin.copy:
-    dest: /var/lib/rancher/k3s/server/manifests/argocd-namespace.yaml
+    dest: /var/lib/rancher/k3s/server/manifests/argocd.yaml
     owner: root
     group: root
     mode: '0644'
     content: |
-      apiVersion: v1
-      kind: Namespace
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChart
       metadata:
         name: argocd
+        namespace: kube-system
+      spec:
+        repo: https://argoproj.github.io/argo-helm
+        chart: argo-cd
+        version: "{{ argocd_chart_version }}"
+        targetNamespace: argocd
+        createNamespace: true
 
-- name: Download ArgoCD install manifest for K3s auto-deploy
-  ansible.builtin.get_url:
-    url: https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-    dest: /var/lib/rancher/k3s/server/manifests/argocd-install.yaml
-    owner: root
-    group: root
-    mode: '0644'
 
 - name: Execute K3s installation script
   ansible.builtin.command:

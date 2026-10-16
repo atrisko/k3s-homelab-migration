@@ -1,0 +1,4 @@
+---
+# Pinned version of the official Argo CD Helm Chart (repo: https://argoproj.github.io/argo-helm)
+# Chart version 7.7.x packages Argo CD v2.13.x
+argocd_chart_version: "7.7.16"
