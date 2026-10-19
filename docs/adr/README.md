@@ -30,6 +30,7 @@ New ADRs start as `Accepted`. Later they may become:
 | [0004](0004-separation-day-1-provisioning-and-os-patch-management.md) | Separation between Day-1 Provisioning and OS Patch Management | Accepted |
 | [0005](0005-loose-mode-rp-filter-for-cni-compatibility.md) | Loose-Mode Reverse Path Filtering (rp_filter) for Kubernetes CNI Compatibility | Accepted |
 | [0006](0006-dual-track-update-and-lifecycle-strategy.md) | Dual-Track Update and Lifecycle Strategy | Accepted |
+| [0007](0007-tls-sans-for-remote-kubernetes-api-access.md) | Declarative TLS Subject Alternative Names (SANs) for Remote Kubernetes API Access | Accepted |
 
 
 ## Template
