@@ -79,8 +79,17 @@
     - apt-daily.timer
     - apt-daily-upgrade.timer
 
+- name: Check for ifupdown configuration directory
+  ansible.builtin.stat:
+    path: /etc/network/interfaces.d
+  register: ifupdown_dir
 
-- name: Ensure persistent IPv6 ULA configuration exists in Debian
+- name: Check for netplan configuration directory
+  ansible.builtin.stat:
+    path: /etc/netplan
+  register: netplan_dir
+
+- name: Ensure persistent IPv6 ULA configuration exists in Debian (ifupdown / RemoteLab)
   ansible.builtin.copy:
     dest: /etc/network/interfaces.d/60-ula.cfg
     owner: root
@@ -92,6 +101,24 @@
           address fd85:cc6d:b16f:30::10/64
           accept_ra 2
           autoconf 1
+  when: ifupdown_dir.stat.exists and ifupdown_dir.stat.isdir
+
+- name: Ensure persistent IPv6 ULA configuration exists (netplan / Cloud AMI)
+  ansible.builtin.copy:
+    dest: /etc/netplan/60-ula.yaml
+    owner: root
+    group: root
+    mode: '0600'
+    content: |
+      # Persistent ULA according to ADR-0001
+      network:
+        version: 2
+        ethernets:
+          {{ ansible_facts['default_ipv4']['interface'] }}:
+            addresses:
+              - "fd85:cc6d:b16f:30::10/64"
+  when: netplan_dir.stat.exists and netplan_dir.stat.isdir
+
 
 - name: Apply ULA immediately (runtime)
   ansible.builtin.command:
