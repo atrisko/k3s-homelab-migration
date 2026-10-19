@@ -109,21 +109,10 @@
   delay: 5
   changed_when: false
 
-- name: Copy Root Application manifest to node
-  ansible.builtin.copy:
-    src: ../../../k8s/bootstrap/root-app.yaml
-    dest: /tmp/root-app.yaml
-    owner: root
-    group: root
-    mode: '0644'
-
 - name: Apply ArgoCD Root Application
   ansible.builtin.command:
-    cmd: k3s kubectl apply -f /tmp/root-app.yaml
+    cmd: k3s kubectl apply -f -
+    stdin: "{{ lookup('file', playbook_dir + '/../k8s/bootstrap/root-app.yaml') }}"
   register: apply_root_app
   changed_when: "'configured' in apply_root_app.stdout or 'created' in apply_root_app.stdout"
 
-- name: Remove temporary Root Application manifest from node
-  ansible.builtin.file:
-    path: /tmp/root-app.yaml
-    state: absent
