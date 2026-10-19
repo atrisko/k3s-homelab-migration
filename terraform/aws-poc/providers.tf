@@ -1,4 +1,6 @@
 terraform {
+  required_version = ">= 1.5.0"
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -12,6 +14,13 @@ terraform {
 }
 
 provider "aws" {
-  region  = "eu-central-1" # servers in Frankfurt/Germany
-  profile = "homelab"
+  region  = var.aws_region
+  profile = var.aws_profile
+
+  default_tags {
+    tags = {
+      Project   = "k3s-homelab-poc"
+      ManagedBy = "terraform"
+    }
+  }
 }

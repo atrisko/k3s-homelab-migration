@@ -30,6 +30,25 @@ resource "aws_instance" "k3s_server" {
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.public_subnet.id
   vpc_security_group_ids = [aws_security_group.k3s_sg.id]
+  lifecycle {
+    ignore_changes = [
+      ami
+    ]
+  }
+
+  # Enforce IMDSv2 to protect against SSRF metadata extraction
+  metadata_options {
+    http_tokens   = "required"
+    http_endpoint = "enabled"
+  }
+
+  # Encrypt root operating system volume
+  root_block_device {
+    volume_type           = "gp3"
+    volume_size           = 10
+    encrypted             = true
+    delete_on_termination = true
+  }
 
   # IMPORTANT: No userdata script here! 
   # OS configuration and K3s installation will be handled by Ansible (Day 1 Ops).
@@ -47,7 +66,9 @@ resource "aws_ebs_volume" "data_volume" {
   availability_zone = aws_instance.k3s_server.availability_zone
   size              = 10
   type              = "gp3"
+  encrypted         = true
 }
+
 
 # Attach the EBS volume to the EC2 instance
 resource "aws_volume_attachment" "ebs_att" {
