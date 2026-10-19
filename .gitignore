@@ -26,8 +26,10 @@ ssh_config
 # Diagrams
 graph.svg
 
-# Code Review
+# Code Review & Project Management
 review.md
+TODO.md
+todo.md
 
 # Agents
 AGENTS.md

@@ -122,9 +122,11 @@ The `os_base` role establishes baseline hygiene, installs container storage prer
 * Ensures `systemd-timesyncd` is installed, enabled, and active.
 * Prevents clock drift to protect TLS certificate validation and Kubernetes ServiceAccount/JWT token expiration.
 
-### Sudoers Security
+### Sudoers Security & Non-Interactive Automation
 * Deploys `/etc/sudoers.d/00-hardening` with permissions `0440`, validated via `/usr/sbin/visudo -cf %s`.
 * Configures `Defaults use_pty` (protects against terminal hijacking via `TIOCSTI` ioctl injection) and `Defaults logfile="/var/log/sudo.log"` for administrative auditability.
+* Deploys `/etc/sudoers.d/10-ansible` granting `{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL` (mode `0440`, syntax-validated via visudo), enabling non-interactive Ansible automation and CI/CD runs without storing plaintext passwords in runner environments.
+
 
 ---
 

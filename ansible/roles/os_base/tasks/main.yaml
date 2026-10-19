@@ -186,6 +186,18 @@
     mode: '0440'
     validate: '/usr/sbin/visudo -cf %s'
 
+- name: Configure passwordless sudo for Ansible administrator user
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/10-ansible
+    content: |
+      # Allow passwordless sudo for non-interactive Ansible automation and CI/CD pipelines
+      {{ ansible_user }} ALL=(ALL) NOPASSWD: ALL
+    owner: root
+    group: root
+    mode: '0440'
+    validate: '/usr/sbin/visudo -cf %s'
+
+
 
 
 
