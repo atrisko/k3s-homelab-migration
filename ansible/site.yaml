@@ -4,6 +4,9 @@
   become: true
 
   roles:
-    - os_base
-    - storage_poc
-    - k3s_install
+    - role: os_base
+      tags: os_base
+    - role: storage_poc
+      tags: storage_poc
+    - role: k3s_install
+      tags: k3s_install
