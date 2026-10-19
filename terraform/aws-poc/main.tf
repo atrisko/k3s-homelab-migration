@@ -92,3 +92,20 @@ resource "local_file" "ssh_config" {
   filename        = "${path.module}/ssh_config"
   file_permission = "0600"
 }
+
+# Generate the Ansible inventory file
+resource "local_file" "ansible_inventory" {
+  content = <<-EOF
+    all:
+      children:
+        k3s_cluster:
+          hosts:
+            aws-k3s-poc:
+              ansible_user: admin
+              ansible_ssh_common_args: '-F ../terraform/aws-poc/ssh_config'
+              data_disk_device: "/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_${replace(aws_ebs_volume.data_volume.id, "-", "")}"
+  EOF
+
+  filename        = "${path.module}/../../ansible/inventory/hosts.yaml"
+  file_permission = "0644"
+}
