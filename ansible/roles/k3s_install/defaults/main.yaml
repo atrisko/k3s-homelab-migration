@@ -2,4 +2,8 @@
 # Pinned version of the official Argo CD Helm Chart (repo: https://argoproj.github.io/argo-helm)
 # Chart version 7.7.x packages Argo CD v2.13.x
 argocd_chart_version: "7.7.16"
+# K3s version for installation
 k3s_version: "v1.37.1+k3s1"
+# Additional Subject Alternative Names (SANs) for the Kubernetes API server certificate
+k3s_tls_san: []
+

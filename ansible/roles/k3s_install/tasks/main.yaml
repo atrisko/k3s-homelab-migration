@@ -49,6 +49,14 @@
       
       # Storage: Dedicated path for Persistent Volumes
       default-local-storage-path: "/mnt/appdata"
+
+      {% if k3s_tls_san | length > 0 %}
+      # Additional Subject Alternative Names for remote API access
+      tls-san:
+      {% for san in k3s_tls_san %}
+        - "{{ san }}"
+      {% endfor %}
+      {% endif %}
   notify: Restart k3s
 
 - name: Ensure K3s auto-deploy manifests directory exists
