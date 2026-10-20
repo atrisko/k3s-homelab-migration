@@ -2,16 +2,7 @@
 
 - name: Install essential system tools
   ansible.builtin.apt:
-    name:
-      - curl
-      - git
-      - htop
-      - jq
-      - open-iscsi
-      - unattended-upgrades
-      - apt-listchanges
-      - systemd-timesyncd
-      - nfs-common # Required later by Kubernetes to mount persistent network storage
+    name: "{{ os_base_packages }}"
     update_cache: yes
     cache_valid_time: 3600 # Prevents running 'apt-get update' again if already run within the last hour
     state: present # Ensures packages exist; does nothing if they are already installed
@@ -40,7 +31,7 @@
       };
 
       // Send email notifications about updates
-      //Unattended-Upgrade::Mail "alex.trisko@gmail.com";
+      //Unattended-Upgrade::Mail "{{ os_mail }}";
       //Unattended-Upgrade::MailReport "on-change";
 
       // Automatically remove unused dependencies
@@ -49,10 +40,10 @@
 
       // Automatically reboot if required (set time for maintenance window)
       Unattended-Upgrade::Automatic-Reboot "true";
-      Unattended-Upgrade::Automatic-Reboot-Time "03:00";
+      Unattended-Upgrade::Automatic-Reboot-Time "{{ os_reboot_time }}";
 
       // Limit download bandwidth (in kb/sec, 0 = unlimited)
-      Acquire::http::Dl-Limit "0";
+      Acquire::http::Dl-Limit "{{ os_download_limit }}";
     mode: '0644'
     owner: root
     group: root
@@ -64,7 +55,7 @@
     content: |
       APT::Periodic::Update-Package-Lists "1";
       APT::Periodic::Download-Upgradeable-Packages "1";
-      APT::Periodic::AutocleanInterval "7";
+      APT::Periodic::AutocleanInterval "{{ os_auto_clean_days }}";
       APT::Periodic::Unattended-Upgrade "1";
     mode: '0644'
     owner: root
@@ -98,7 +89,7 @@
     content: |
       # Persistent ULA according to ADR-0001
       iface {{ ansible_facts['default_ipv4']['interface'] }} inet6 static
-          address fd85:cc6d:b16f:30::10/64
+          address {{ os_ipv6_ula }}
           accept_ra 2
           autoconf 1
   when: ifupdown_dir.stat.exists and ifupdown_dir.stat.isdir
@@ -116,14 +107,14 @@
         ethernets:
           {{ ansible_facts['default_ipv4']['interface'] }}:
             addresses:
-              - "fd85:cc6d:b16f:30::10/64"
+              - "{{ os_ipv6_ula }}"
   when: netplan_dir.stat.exists and netplan_dir.stat.isdir
 
 
 - name: Apply ULA immediately (runtime)
   ansible.builtin.command:
-    cmd: "ip -6 addr replace fd85:cc6d:b16f:30::10/64 dev {{ ansible_facts['default_ipv4']['interface'] }}"
-  when: "'fd85:cc6d:b16f:30::10' not in (ansible_facts['all_ipv6_addresses'] | default([]))"
+    cmd: "ip -6 addr replace {{ os_ipv6_ula }} dev {{ ansible_facts['default_ipv4']['interface'] }}"
+  when: os_ipv6_ula.split('/')[0] not in (ansible_facts['all_ipv6_addresses'] | default([]))
 
 - name: Refresh network facts after IPv6 change
   ansible.builtin.setup:
@@ -177,10 +168,10 @@
     content: |
       [Journal]
       # Cap total disk space used by systemd journal to prevent K8s DiskPressure
-      SystemMaxUse=1G
-      SystemMaxFileSize=100M
-      MaxRetentionSec=1month
-      ForwardToSyslog=no
+      SystemMaxUse={{ os_systemd_max_usage }}
+      SystemMaxFileSize={{ os_systemd_max_file_size }}
+      MaxRetentionSec={{ os_systemd_max_retention_sec }}
+      ForwardToSyslog={{ os_systemd_forward_to_syslog }}
     owner: root
     group: root
     mode: '0644'

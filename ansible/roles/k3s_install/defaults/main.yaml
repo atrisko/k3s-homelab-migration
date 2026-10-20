@@ -2,8 +2,27 @@
 # Pinned version of the official Argo CD Helm Chart (repo: https://argoproj.github.io/argo-helm)
 # Chart version 7.7.x packages Argo CD v2.13.x
 argocd_chart_version: "7.7.16"
+
 # K3s version for installation
 k3s_version: "v1.37.1+k3s1"
+
 # Additional Subject Alternative Names (SANs) for the Kubernetes API server certificate
 k3s_tls_san: []
+
+# K3s Storage
+k3s_storage_path: "{{ storage_mount_point | default('/mnt/appdata') }}"
+
+# Dual-Stack Cluster CIDRs (nach ADR-0001)
+k3s_cluster_cidr: "10.42.0.0/16,fd85:cc6d:b16f:4200::/56"
+k3s_service_cidr: "10.43.0.0/16,fd85:cc6d:b16f:4300::/112"
+k3s_flannel_ipv6_masq: true
+
+# IPv6 ULA Erkennung für node-ip
+k3s_node_ipv6_prefix: "^{{ (os_ipv6_ula | default('fd85:cc6d:b16f:30::10/64')).split('::')[0] }}::"
+
+
+# ArgoCD CRD Wait Timings
+k3s_argocd_wait_retries: 24
+k3s_argocd_wait_delay: 5
+
 

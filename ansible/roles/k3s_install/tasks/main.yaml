@@ -16,8 +16,8 @@
 - name: Verify that the node has its ULA from ADR-0001
   ansible.builtin.assert:
     that:
-      - (ansible_facts['all_ipv6_addresses'] | default([])) | select('match', '^fd85:cc6d:b16f:30::') | list | length > 0
-    fail_msg: "Node has no ULA from fd85:cc6d:b16f:30::/64. Configure networking (os_base) first."
+      - (ansible_facts['all_ipv6_addresses'] | default([])) | select('match', k3s_node_ipv6_prefix) | list | length > 0
+    fail_msg: "Node has no ULA from {{ k3s_node_ipv6_prefix }}. Configure networking (os_base) first."
 
 - name: Refresh mount facts after storage_poc role execution
   ansible.builtin.setup:
@@ -25,11 +25,11 @@
       - '!all'
       - 'mounts'
 
-- name: Verify that /mnt/appdata is an active mountpoint to prevent root-disk overflow
+- name: Verify that {{ k3s_storage_path }} is an active mountpoint to prevent root-disk overflow
   ansible.builtin.assert:
     that:
-      - ansible_facts['mounts'] | selectattr('mount', 'equalto', '/mnt/appdata') | list | length > 0
-    fail_msg: "/mnt/appdata is not mounted! K3s local-path provisioner would write directly to the root disk."
+      - ansible_facts['mounts'] | selectattr('mount', 'equalto', k3s_storage_path) | list | length > 0
+    fail_msg: "{{ k3s_storage_path }} is not mounted! K3s local-path provisioner would write directly to the root disk."
 
 
 - name: Write K3s config.yaml for Dual-Stack and Storage
@@ -40,15 +40,15 @@
     mode: '0644'
     content: |
       # Dual-Stack: IPv4 (10.42.x.x) / IPv6 ULAs (fd85:cc6d:b16f::) according to ADR-0001
-      cluster-cidr: "10.42.0.0/16,fd85:cc6d:b16f:4200::/56"
-      service-cidr: "10.43.0.0/16,fd85:cc6d:b16f:4300::/112"
-      flannel-ipv6-masq: true
+      cluster-cidr: "{{ k3s_cluster_cidr }}"
+      service-cidr: "{{ k3s_service_cidr }}"
+      flannel-ipv6-masq: {{ k3s_flannel_ipv6_masq | bool | lower }}
       
       # Force the node to use both IPs (dynamic IPv4 + static ULA) using modern facts syntax
-      node-ip: "{{ ansible_facts['default_ipv4']['address'] }},{{ ansible_facts['all_ipv6_addresses'] | select('match', '^fd85:cc6d:b16f:30::') | first }}"
+      node-ip: "{{ ansible_facts['default_ipv4']['address'] }},{{ ansible_facts['all_ipv6_addresses'] | select('match', k3s_node_ipv6_prefix) | first }}"
       
       # Storage: Dedicated path for Persistent Volumes
-      default-local-storage-path: "/mnt/appdata"
+      default-local-storage-path: "{{ k3s_storage_path }}"
 
       {% if k3s_tls_san | length > 0 %}
       # Additional Subject Alternative Names for remote API access
@@ -113,8 +113,8 @@
     cmd: k3s kubectl wait --for=condition=Established crd/applications.argoproj.io --timeout=30s
   register: crd_wait
   until: crd_wait.rc == 0
-  retries: 24
-  delay: 5
+  retries: "{{ k3s_argocd_wait_retries }}"
+  delay: "{{ k3s_argocd_wait_delay }}"
   changed_when: false
 
 - name: Apply ArgoCD Root Application

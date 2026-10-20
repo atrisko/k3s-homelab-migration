@@ -1,0 +1,37 @@
+---
+# Packages to install
+os_base_packages:
+  - curl
+  - git
+  - htop
+  - jq
+  - open-iscsi
+  - unattended-upgrades
+  - apt-listchanges
+  - systemd-timesyncd
+  - nfs-common
+
+
+# Email Address for update notifications
+os_mail: "alex.trisko@gmail.com"
+
+# Time for automatic reboots
+os_reboot_time: "03:00"
+
+# Limit download bandwidth for updates (in kb/sec, 0 = unlimited)
+os_download_limit: "0"
+
+# Days to keep old packages for auto-clean
+os_auto_clean_days: "7"
+
+# IPv6 ULA for node
+os_ipv6_ula: "fd85:cc6d:b16f:30::10/64"
+
+# Configuration of systemd-journald
+os_systemd_max_usage: "1G"
+os_systemd_max_file_size: "100M"
+os_systemd_max_retention_sec: "1month"
+os_systemd_forward_to_syslog: "no"
+
+
+
