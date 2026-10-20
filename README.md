@@ -5,7 +5,7 @@ This repository contains the declarative infrastructure, configuration managemen
 To minimize migration risk and maintain rollback capabilities, the architecture is developed and validated through a multi-stage pipeline:
 1. **Cloud Testbed (AWS PoC):** Ephemeral infrastructure managed via Terraform and Ansible for automated cold-start verification.
 2. **Local Staging (Hyper-V RemoteLab):** Validating real-world LAN networking, storage SCSI persistence, and ingress traffic without bare-metal hardware risk.
-3. **Physical Target (Bare Metal):** Final deployment on dedicated hardware using 3-tier storage (`mergerfs` + `SnapRAID`, SSD mirrors) and in-cluster ArgoCD GitOps.
+3. **Physical Target (Bare Metal):** Final deployment on dedicated hardware using 3-tier storage (`mergerfs` + `SnapRAID` bulk pool, NVMe appdata pool prepared for online mirror, and dedicated system SSD) and in-cluster ArgoCD GitOps.
 
 ---
 
@@ -20,11 +20,11 @@ The migration follows an 8-phase roadmap with explicit validation gates (Phase 4
 | **Phase 3** | **K3s Bootstrap & Runtime** | Dual-stack K3s installation, storage redirection, ArgoCD HelmChart CR & root app | 🏁 In Progress |
 | **Phase 4** | **CI/CD & Code Quality** | Automated linting (`ansible-lint`, `terraform fmt`), dry-runs & clean rebuild testing | ⏳ Planned |
 | **Phase 4.5** | **RemoteLab (Staging Environment)** | Hyper-V VM staging, SCSI WWID storage, Traefik Ingress routing & LAN validation | 🏁 In Progress |
-| **Phase 5** | **Bare-Metal Foundation** | Physical hardware, System-SSD, SSD-Mirror, `mergerfs`/`SnapRAID` pool & DMZ isolation | ⏳ Planned |
-| **Phase 6** | **GitOps Workload Migration** | App-of-Apps catalog (`k8s/infra`, `k8s/apps`), secrets operator & application workloads | ⏳ Planned |
+| **Phase 5** | **Bare-Metal Foundation** | Physical hardware, system SSD, NVMe appdata pool, KVM hypervisor & DMZ ingress | ⏳ Planned |
+| **Phase 6** | **GitOps Workload Migration** | App catalog (`k8s/infra`, `k8s/apps`), secrets operator & application workloads | ⏳ Planned |
 | **Phase 7** | **Day-2 Operations & Security** | Automated SnapRAID timers, SQLite K3s state backup & restic PV backup | ⏳ Planned |
 | **Phase 7.5** | **Pre-Migration Gate & Resilience** | App-by-app rehearsal, backup restore verification, SnapRAID recovery & rollback testing | ⏳ Planned |
-| **Phase 8** | **Data Migration & Cutover** | In-place data array mounting, container appdata sync, DNS cutover & Unraid decommissioning | ⏳ Planned |
+| **Phase 8** | **Data Migration & Cutover** | In-place data array attachment, read-only mergerfs validation, appdata sync, SnapRAID parity cutover & DNS migration | ⏳ Planned |
 
 ---
 
@@ -33,12 +33,12 @@ The migration follows an 8-phase roadmap with explicit validation gates (Phase 4
 * **Infrastructure Provisioning (Phase 1 & 5):** Cloud testbeds provisioned with **Terraform** on AWS; bare-metal target initialized via Debian 13 on a dedicated system SSD.
 * **OS Baseline & 3-Tier Storage (Phase 2 & 5):** Configured declaratively via **Ansible**:
   * **Tier 1 (System SSD):** Debian 13 host operating system and boot partition.
-  * **Tier 2 (Appdata SSD Mirror):** Dedicated mirror pool for latency-sensitive K3s Persistent Volumes (`local-path-provisioner`).
+  * **Tier 2 (Appdata NVMe):** Dedicated NVMe storage (prepared for online mirror) for latency-sensitive K3s Persistent Volumes (`local-path-provisioner`) and write caching.
   * **Tier 3 (Bulk Storage Pool):** **In-place migration** of existing Unraid data HDDs (`mergerfs` pool with `SnapRAID` parity) without reformatting data disks.
 * **Separation of Concerns (Day-1 vs. Day-2):**
   * **Day-1 Provisioning:** **Ansible** handles OS hardening, network configuration, storage mounts, K3s installation, and initial ArgoCD bootstrapping.
   * **Day-2 Workload Lifecycle:** **ArgoCD** runs natively inside the K3s cluster, using a **pull-based GitOps engine** to continuously reconcile manifests and Helm charts from Git.
-* **Reboot Resilience & Idempotency:** All configuration (IPv6 ULAs, storage mounts, kernel parameters) is reboot-persistent and verified through repeated playbook execution (`changed=0`).
+* **Reboot Resilience & Idempotency:** Host and cluster configurations (IPv6 ULAs, storage mounts, kernel parameters) are designed for strict idempotency and reboot persistence, with formal verification gates scheduled in Phase 4.5 staging.
 
 ---
 
@@ -49,10 +49,10 @@ The configuration management workflow targets the abstract OS layer (`Debian 13`
 | Layer | AWS Cloud PoC (`eu-central-1`) | RemoteLab (Hyper-V Hypervisor) | Bare-Metal Target (Homelab) |
 | :--- | :--- | :--- | :--- |
 | **Purpose** | Fast IaC validation, ephemeral disaster recovery testbed | LAN staging, ingress validation, migration rehearsal | Production runtime environment |
-| **Compute** | EC2 (`t3.small`, 2 GB RAM, Free-Tier eligible) | Debian Gen2 VM (dedicated vCPUs, dynamic RAM) | Physical Intel node |
-| **Storage** | AWS EBS (`gp3`, 10 GiB encrypted) | Virtual Hard Disk (SCSI WWID addressing) | **3-Tier Storage:**<br>1. System SSD (OS)<br>2. NVMe Mirror (Appdata PVCs)<br>3. `mergerfs` + `SnapRAID` pool |
+| **Compute** | EC2 (`t3.small`, 2 GB RAM, low-cost) | Debian Gen2 VM (dedicated vCPUs, dynamic RAM) | Physical Intel node |
+| **Storage** | AWS EBS (`gp3`, 10 GiB encrypted) | Virtual Hard Disk (SCSI WWID addressing) | **3-Tier Storage:**<br>1. System SSD (OS)<br>2. NVMe Pool (Appdata PVCs, prepared for mirror)<br>3. `mergerfs` + `SnapRAID` pool |
 | **Inventory** | `ansible/inventory/hosts.yaml` | `ansible/inventory/remotelab.yaml` | `ansible/inventory/production.yaml` *(planned)* |
-| **Cost Profile** | Pay-as-you-go (< 0.05 € per test cycle) | Zero marginal cost | Fixed hardware / self-hosted |
+| **Cost Profile** | Pay-as-you-go (~0.10–0.20 € per 2–4 h test cycle) | Zero marginal cost | Fixed hardware / self-hosted |
 
 ---
 
@@ -93,13 +93,13 @@ flowchart TD
 
 ### 1. Day-1 Bootstrapping vs. Day-2 GitOps
 * **Day-1 (Ansible):** Enforces desired host state: OS baseline packages, security hardening (SSH, kernel sysctl, module blacklisting), storage mounting via persistent device IDs, K3s installation, and bootstrapping ArgoCD.
-* **Day-2 (ArgoCD):** Runs autonomously inside K3s. It monitors the `k8s/**` directory in Git and reconciles application workloads against the cluster API. External tools do not require direct Kubernetes API access or stored cluster credentials.
+* **Day-2 (ArgoCD):** Runs inside K3s. It monitors the `k8s/**` directory in Git and reconciles application workloads against the cluster API. External tools do not require direct Kubernetes API access or stored cluster credentials.
 
 ### 2. CI/CD & Security Boundary
 * **Current State (Operator-Triggered):** Infrastructure orchestration is executed locally via Ansible CLI using 1Password SSH-Agent authentication (`SSH_AUTH_SOCK`).
 * **Planned CI/CD (Phase 4):** GitHub Actions will automate linting (`ansible-lint`, `terraform fmt`) and dry-run syntax checks.
 * **Public Repository Safety:** Because this repository is public, automated runners are deliberately not granted direct SSH or LAN access into the home network, avoiding security risks from fork PRs or untrusted workflow execution.
-* **Secrets Management:** Infrastructure secrets stay outside Git (local 1Password). In-cluster Kubernetes secrets will be managed declaratively starting in Phase 6 (e.g., via External Secrets Operator or SOPS).
+* **Secrets Management:** Infrastructure secrets stay outside Git (local 1Password). In-cluster Kubernetes secrets will be managed declaratively starting in Phase 6 (e.g. via External Secrets Operator or SOPS).
 
 ---
 
@@ -110,6 +110,8 @@ flowchart TD
 ├── README.md               # Project overview, roadmap and architecture blueprint
 ├── docs/                   # Technical documentation and guides
 │   ├── adr/                # Architecture Decision Records (ADRs)
+│   ├── reviews/            # Architecture & code reviews
+│   ├── roadmap.md          # Project roadmap & implementation checklist
 │   ├── terraform.md        # AWS PoC provisioning and lifecycle guide
 │   └── ansible.md          # OS hardening, storage orchestration & K3s dual-stack guide
 ├── terraform/
@@ -120,7 +122,7 @@ flowchart TD
 │   ├── inventory/          # Target inventories (AWS hosts.yaml, RemoteLab remotelab.yaml)
 │   └── roles/              # Modular roles (os_base, storage_poc, k3s_install)
 └── k8s/                    # Kubernetes GitOps manifests
-    ├── bootstrap/          # ArgoCD App-of-Apps root application (root-app.yaml)
+    ├── bootstrap/          # ArgoCD root application (root-app.yaml)
     └── test-workload/      # Smoke-test workload manifests (Caddy test workload)
 ```
 
@@ -128,6 +130,8 @@ flowchart TD
 
 ## Detailed Documentation
 
+* [Project Roadmap & Implementation Checklist](docs/roadmap.md)
+* [Architecture & Code Reviews](docs/reviews/review-1.md)
 * [Architecture Decision Records (ADRs)](docs/adr/README.md)
 * [Terraform AWS Provisioning & Lifecycle Guide](docs/terraform.md)
 * [Ansible Configuration & K3s Provisioning Guide](docs/ansible.md)
@@ -180,11 +184,14 @@ terraform destroy
 
 ### 5. Deploy to RemoteLab Staging (Phase 4.5)
 
-To target the local Hyper-V staging environment, execute the same playbook against the RemoteLab inventory:
+To target the local Hyper-V staging environment, execute the same playbook against the RemoteLab inventory.
+
+> [!NOTE]
+> The initial run against a freshly installed Debian target requires `-K` (`--ask-become-pass`) to configure passwordless sudo (`/etc/sudoers.d/10-ansible`). Subsequent runs execute unattended without additional flags.
 
 ```bash
 cd ../../ansible
-ansible-playbook -i inventory/remotelab.yaml site.yaml
+ansible-playbook -i inventory/remotelab.yaml site.yaml -K
 ```
 
 ---
