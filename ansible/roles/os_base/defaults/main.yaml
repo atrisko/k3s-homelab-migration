@@ -13,7 +13,7 @@ os_base_packages:
 
 
 # Email Address for update notifications
-os_mail: "alex.trisko@gmail.com"
+os_mail: ""
 
 # Time for automatic reboots
 os_reboot_time: "03:00"
