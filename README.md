@@ -1,123 +1,105 @@
 # Cloud-to-Bare-Metal: K3s Infrastructure & Homelab Migration
 
-This repository contains the end-to-end blueprint and automated implementation for migrating a legacy **Unraid homelab server** to a modern, fully declarative **K3s Kubernetes cluster** running on **Debian 13 (Trixie)**.
+This repository contains the declarative infrastructure, configuration management, and GitOps workflows for migrating a legacy **Unraid homelab server** to a modern **K3s Kubernetes cluster** running on **Debian 13 (Trixie)**.
 
-To eliminate migration risks and guarantee zero downtime for production data, the entire architecture is developed and validated through a 3-stage pipeline: first in an **ephemeral AWS cloud testbed (Terraform + Ansible)**, followed by a **RemoteLab VM** (for real-world ingress, DNS, and SSL validation with public IPs), before finally being deployed onto physical **bare-metal hardware** (`mergerfs` + `SnapRAID`, SSD mirror pools, and ArgoCD).
+To minimize migration risk and maintain rollback capabilities, the architecture is developed and validated through a multi-stage pipeline:
+1. **Cloud Testbed (AWS PoC):** Ephemeral infrastructure managed via Terraform and Ansible for automated cold-start verification.
+2. **Local Staging (Hyper-V RemoteLab):** Validating real-world LAN networking, storage SCSI persistence, and ingress traffic without bare-metal hardware risk.
+3. **Physical Target (Bare Metal):** Final deployment on dedicated hardware using 3-tier storage (`mergerfs` + `SnapRAID`, SSD mirrors) and in-cluster ArgoCD GitOps.
 
 ---
 
 ## 🗺️ Migration Roadmap & Phases
 
-The migration is structured into 8 core phases plus dedicated staging and pre-cutover gates (Phase 4.5 & Phase 7.5), moving systematically from cloud validation to bare-metal cutover:
+The migration follows an 8-phase roadmap with explicit validation gates (Phase 4.5 & Phase 7.5):
 
 | Phase | Milestone | Focus / Tech Stack | Status |
 | :--- | :--- | :--- | :--- |
-| **Phase 1** | **AWS PoC Infrastructure** | Ephemeral testbed via Terraform, EC2, EBS & dynamic SSH config | ✅ Done |
-| **Phase 2** | **Ansible Baseline Setup** | Declarative OS hardening, base packages & PoC volume mounts | ✅ Done |
-| **Phase 3** | **K3s Bootstrap & Runtime** | K3s installation, local-path storage to app storage & test workload | 🏁 In Progress |
-| **Phase 4** | **GitOps & CI/CD (GitHub Actions)** | Push-based Ansible Day-1 automation, linting & clean rebuild test | ⏳ Planned |
-| **Phase 4.5** | **RemoteLab (Staging Environment)** | Hyper-V VM, public IPs, Traefik Ingress routing, SSL certs & DNS validation | ⏳ Planned |
-| **Phase 5** | **Bare-Metal Foundation** | Physical hardware, System-SSD, SSD-Mirror, `mergerfs`/`SnapRAID` & local runner | ⏳ Planned |
-| **Phase 6** | **K3s Native GitOps (ArgoCD)** | In-cluster ArgoCD deployment, repo integration & pull-based workload sync | ⏳ Planned |
-| **Phase 7** | **Day-2 Operations & Security** | Automated SnapRAID sync/scrub timers, K3s state backup & restic appdata backup | ⏳ Planned |
-| **Phase 7.5** | **Pre-Migration Gate & Resilience** | App-by-app rehearsal, backup restore test, SnapRAID recovery & rollback verification | ⏳ Planned |
-| **Phase 8** | **Data Migration & Unraid Cutover** | Container appdata & media `rsync`, ArgoCD prod sync, DNS cutover & decommissioning | ⏳ Planned |
+| **Phase 1** | **AWS PoC Infrastructure** | Ephemeral testbed via Terraform, EC2 (`t3.small`), encrypted EBS & dynamic SSH config | ✅ Done |
+| **Phase 2** | **Ansible Baseline Setup** | Declarative OS hardening, base packages, ULA networking & PoC volume mounts | ✅ Done |
+| **Phase 3** | **K3s Bootstrap & Runtime** | Dual-stack K3s installation, storage redirection, ArgoCD HelmChart CR & root app | 🏁 In Progress |
+| **Phase 4** | **CI/CD & Code Quality** | Automated linting (`ansible-lint`, `terraform fmt`), dry-runs & clean rebuild testing | ⏳ Planned |
+| **Phase 4.5** | **RemoteLab (Staging Environment)** | Hyper-V VM staging, SCSI WWID storage, Traefik Ingress routing & LAN validation | 🏁 In Progress |
+| **Phase 5** | **Bare-Metal Foundation** | Physical hardware, System-SSD, SSD-Mirror, `mergerfs`/`SnapRAID` pool & DMZ isolation | ⏳ Planned |
+| **Phase 6** | **GitOps Workload Migration** | App-of-Apps catalog (`k8s/infra`, `k8s/apps`), secrets operator & application workloads | ⏳ Planned |
+| **Phase 7** | **Day-2 Operations & Security** | Automated SnapRAID timers, SQLite K3s state backup & restic PV backup | ⏳ Planned |
+| **Phase 7.5** | **Pre-Migration Gate & Resilience** | App-by-app rehearsal, backup restore verification, SnapRAID recovery & rollback testing | ⏳ Planned |
+| **Phase 8** | **Data Migration & Cutover** | In-place data array mounting, container appdata sync, DNS cutover & Unraid decommissioning | ⏳ Planned |
 
 ---
 
 ## Architecture at a Glance
 
-* **Infrastructure Provisioning (Phase 1 & 5):** Cloud testbeds managed via **Terraform** on AWS; bare-metal target initialized via a dedicated base Debian 13 installation on the system SSD.
+* **Infrastructure Provisioning (Phase 1 & 5):** Cloud testbeds provisioned with **Terraform** on AWS; bare-metal target initialized via Debian 13 on a dedicated system SSD.
 * **OS Baseline & 3-Tier Storage (Phase 2 & 5):** Configured declaratively via **Ansible**:
-  * **System-SSD:** Dedicated Debian OS and boot drive.
-  * **Appdata-SSD-Mirror:** Hardware/ZFS mirror pool for latency-sensitive K3s Persistent Volumes (local-path provisioner).
-  * **Bulk Storage Pool (`mergerfs` + `SnapRAID`):** **In-place migration** of existing Unraid data HDDs **without reformatting**, pooled into a unified filesystem with parity protection.
+  * **Tier 1 (System SSD):** Debian 13 host operating system and boot partition.
+  * **Tier 2 (Appdata SSD Mirror):** Dedicated mirror pool for latency-sensitive K3s Persistent Volumes (`local-path-provisioner`).
+  * **Tier 3 (Bulk Storage Pool):** **In-place migration** of existing Unraid data HDDs (`mergerfs` pool with `SnapRAID` parity) without reformatting data disks.
 * **Separation of Concerns (Day-1 vs. Day-2):**
-  * **Day-1 Bootstrapping (Phase 3 & 4):** **Ansible** (executed via GitHub Actions) handles exclusively OS configuration, storage mounts, K3s installation, and one-time ArgoCD bootstrapping.
-  * **Day-2 Application Lifecycle (Phase 6):** **ArgoCD** runs natively inside the K3s cluster, using a pure **pull-based GitOps engine** to reconcile manifests and Helm charts from Git. GitHub Actions never touches container deployments directly.
-* **Bare-Metal Portability:** By isolating OS configuration and Kubernetes deployment into Ansible, the entire provisioning workflow runs identically on physical bare-metal nodes once Debian is installed.
+  * **Day-1 Provisioning:** **Ansible** handles OS hardening, network configuration, storage mounts, K3s installation, and initial ArgoCD bootstrapping.
+  * **Day-2 Workload Lifecycle:** **ArgoCD** runs natively inside the K3s cluster, using a **pull-based GitOps engine** to continuously reconcile manifests and Helm charts from Git.
+* **Reboot Resilience & Idempotency:** All configuration (IPv6 ULAs, storage mounts, kernel parameters) is reboot-persistent and verified through repeated playbook execution (`changed=0`).
 
 ---
 
-## Deployment Targets & Multi-Platform Strategy
+## Deployment Targets
 
-The infrastructure and provisioning workflow is strictly platform-agnostic, separating infrastructure declaration from application orchestration:
+The configuration management workflow targets the abstract OS layer (`Debian 13`), allowing identical roles to configure different environments via separate inventory files:
 
 | Layer | AWS Cloud PoC (`eu-central-1`) | RemoteLab (Hyper-V Hypervisor) | Bare-Metal Target (Homelab) |
 | :--- | :--- | :--- | :--- |
-| **Purpose** | IaC validation, cloud networking, ephemeral PoC | Staging, load testing, migration rehearsal | Production runtime environment |
-| **Compute** | EC2 (`t3.micro` for base tests, `t3.large` for full load) | Debian Gen2 VM (dedicated vCPUs, dynamic RAM) | Physical Debian 13 node |
-| **Storage** | AWS EBS (`gp3`, 10 GB PoC) | Virtual Hard Disk (`.vhdx`, dynamically sized) | **3-Tier Storage:**<br>1. System SSD (OS)<br>2. SSD-Mirror (Appdata/K3s PVCs)<br>3. `mergerfs` + `SnapRAID` HDD pool (In-Place Unraid Disks) |
-| **Provisioning** | Terraform + Ansible | Hyper-V Host / PowerShell + Ansible | ISO / Cloud-Init + Ansible |
-| **Cost Profile** | Pay-as-you-go (~0.08 $/hr for load testing) | Zero marginal cost (continuous runtime) | Fixed local hardware cost |
-
-### Orchestration Principle
-Ansible plays and roles target the abstract OS layer (`Debian 13`). Whether executed against an AWS EC2 instance via the generated `ssh_config`, a VM in the RemoteLab, or physical bare metal, the provisioning baseline, storage mounts, and K3s bootstrap remain idempotent and reproducible.
+| **Purpose** | Fast IaC validation, ephemeral disaster recovery testbed | LAN staging, ingress validation, migration rehearsal | Production runtime environment |
+| **Compute** | EC2 (`t3.small`, 2 GB RAM, Free-Tier eligible) | Debian Gen2 VM (dedicated vCPUs, dynamic RAM) | Physical Intel node |
+| **Storage** | AWS EBS (`gp3`, 10 GiB encrypted) | Virtual Hard Disk (SCSI WWID addressing) | **3-Tier Storage:**<br>1. System SSD (OS)<br>2. NVMe Mirror (Appdata PVCs)<br>3. `mergerfs` + `SnapRAID` pool |
+| **Inventory** | `ansible/inventory/hosts.yaml` | `ansible/inventory/remotelab.yaml` | `ansible/inventory/production.yaml` *(planned)* |
+| **Cost Profile** | Pay-as-you-go (< 0.05 € per test cycle) | Zero marginal cost | Fixed hardware / self-hosted |
 
 ---
 
-## GitOps & CI/CD Pipeline (Day-1 vs. Day-2)
+## GitOps & Workflow Architecture (Day-1 vs. Day-2)
 
-The architecture strictly decouples **infrastructure bootstrapping (Day-1)** from **workload management (Day-2)**:
+The architecture decouples **host & cluster bootstrapping (Day-1)** from **workload management (Day-2)**:
 
 ```mermaid
 flowchart TD
     subgraph Repo ["GitHub Repository"]
-        CodeAnsible["ansible/**<br/>(OS & Cluster Config)"]
-        CodeK8s["kubernetes/**<br/>(App Manifests & Helm Charts)"]
+        CodeAnsible["ansible/**<br/>(OS, Storage & K3s Baseline)"]
+        CodeK8s["k8s/**<br/>(Bootstrap, Infra & App Manifests)"]
     end
 
-    subgraph Day1 ["Day-1: CI/CD Infrastructure Pipeline (Push)"]
-        GHA["GitHub Actions Runner<br/>(Cloud PoC: GitHub-Hosted<br/>Bare-Metal: Local Self-Hosted)"]
-        Playbook["Ansible Playbooks<br/>(site.yaml)"]
-        GHA --> Playbook
+    subgraph Day1 ["Day-1: Infrastructure Provisioning"]
+        AnsibleCLI["Ansible Playbook<br/>(site.yaml)"]
+        Inv["Inventory Selection<br/>(hosts.yaml / remotelab.yaml)"]
+        Inv --> AnsibleCLI
     end
 
-    subgraph Target ["Target Node (Debian 13: AWS EC2 / Bare Metal)"]
-        OS["Debian 13 OS & Storage<br/>(System-SSD | SSD-Mirror | mergerfs/SnapRAID)"]
-        K3sEngine["K3s Kubernetes Engine"]
-        ArgoCDEngine["ArgoCD Controller<br/>(In-Cluster)"]
-        Containers["Application Workloads<br/>(Jellyfin, Caddy, etc.)"]
+    subgraph Target ["Target Node (Debian 13: AWS / RemoteLab / Bare Metal)"]
+        OS["Hardened Debian 13 Baseline<br/>(SSH, Sysctl, ULA, Storage Mounts)"]
+        K3sEngine["K3s Kubernetes Engine<br/>(Dual-Stack Networking)"]
+        ArgoCDEngine["ArgoCD Controller<br/>(HelmChart CR)"]
+        Workloads["Application Workloads<br/>(Caddy, Jellyfin, Nextcloud, etc.)"]
 
         OS --> K3sEngine
         K3sEngine --> ArgoCDEngine
-        ArgoCDEngine -->|Pull Sync & Reconcile| Containers
+        ArgoCDEngine -->|Autonomous GitOps Pull| Workloads
     end
 
-    CodeAnsible -->|git push| GHA
-    Playbook -->|SSH: Idempotent OS Setup & K3s Install| OS
-    Playbook -.->|Einmaliges Bootstrap| ArgoCDEngine
+    CodeAnsible -->|Operator Execution| AnsibleCLI
+    AnsibleCLI -->|SSH: Idempotent OS Setup & K3s Install| OS
+    AnsibleCLI -.->|One-Time Helm Bootstrap| ArgoCDEngine
 
-    CodeK8s -.->|Autonomous GitOps Pull / Polling| ArgoCDEngine
+    CodeK8s -.->|Continuous Reconciliation| ArgoCDEngine
 ```
 
-### 1. Day-1 Bootstrapping vs. Day-2 GitOps (Separation of Concerns)
-* **Day-1: Infrastructure & Cluster Bootstrapping (Ansible / CI/CD Push):**
-  * The GitHub Actions runner acts as an ephemeral Ansible Control Node.
-  * It enforces desired system state idempotently: OS hardening, disk mounts (`mergerfs`, `SnapRAID`, SSD mirror), kernel parameters, K3s installation, and one-time bootstrapping of ArgoCD.
-  * **GitHub Actions never pushes application containers or modifies runtime Kubernetes workloads directly.**
-* **Day-2: Application Lifecycle & Workloads (ArgoCD / GitOps Pull):**
-  * ArgoCD runs as an autonomous reconciliation controller inside the K3s cluster.
-  * It monitors the `kubernetes/**` directory in Git and continuously pulls/reconciles the desired application state against the K3s API.
-  * External runners do not need cluster access or exported `kubeconfig` files to deploy applications.
+### 1. Day-1 Bootstrapping vs. Day-2 GitOps
+* **Day-1 (Ansible):** Enforces desired host state: OS baseline packages, security hardening (SSH, kernel sysctl, module blacklisting), storage mounting via persistent device IDs, K3s installation, and bootstrapping ArgoCD.
+* **Day-2 (ArgoCD):** Runs autonomously inside K3s. It monitors the `k8s/**` directory in Git and reconciles application workloads against the cluster API. External tools do not require direct Kubernetes API access or stored cluster credentials.
 
-### 2. Secret & Credential Management
-Security adheres to the **Principle of Least Privilege (PoLP)**:
-* **Cloud PoC:** Target node SSH credentials (`SSH_PRIVATE_KEY`) are passed via GitHub Repository Secrets (injected from 1Password) into memory via `webfactory/ssh-agent@v0.9.0`. No keys persist on runner disks.
-* **Bare-Metal Production:** To avoid exposing internal SSH keys to cloud runners, execution switches to a **local self-hosted GitHub Actions runner** running as an isolated container inside the homelab LAN.
-
-### 3. Workflow Triggers & Pipeline Stages
-* **Triggers:**
-  * `push` to `main` restricted strictly to changes within `ansible/**`.
-  * `workflow_dispatch` for manual dry-runs and parameter-driven deployments.
-* **Pipeline Stages:**
-  1. **Validation & Linting:** `ansible-lint` and YAML validation against best practices.
-  2. **Dry Run / Diff:** `ansible-playbook -i inventory --check --diff` to preview state drifts.
-  3. **Playbook Execution:** `ansible-playbook -i <inventory> site.yaml` to enforce the target infrastructure state.
-
-### 4. Transition to Bare-Metal Homelab
-* **Air-Gapped Credential Boundary:** Using a self-hosted runner inside the local network completely eliminates the need for inbound SSH port forwardings or storing physical server credentials in the cloud.
-* **Inventory Switching:** Changing environments only requires selecting the corresponding Ansible inventory group (`aws_poc` vs. `bare_metal`), keeping all underlying roles and playbooks identical.
+### 2. CI/CD & Security Boundary
+* **Current State (Operator-Triggered):** Infrastructure orchestration is executed locally via Ansible CLI using 1Password SSH-Agent authentication (`SSH_AUTH_SOCK`).
+* **Planned CI/CD (Phase 4):** GitHub Actions will automate linting (`ansible-lint`, `terraform fmt`) and dry-run syntax checks.
+* **Public Repository Safety:** Because this repository is public, automated runners are deliberately not granted direct SSH or LAN access into the home network, avoiding security risks from fork PRs or untrusted workflow execution.
+* **Secrets Management:** Infrastructure secrets stay outside Git (local 1Password). In-cluster Kubernetes secrets will be managed declaratively starting in Phase 6 (e.g., via External Secrets Operator or SOPS).
 
 ---
 
@@ -125,14 +107,21 @@ Security adheres to the **Principle of Least Privilege (PoLP)**:
 
 ```text
 .
-├── README.md               # Project entry point and high-level overview
-├── docs/                   # Modular architecture and technical documentation
+├── README.md               # Project overview, roadmap and architecture blueprint
+├── docs/                   # Technical documentation and guides
 │   ├── adr/                # Architecture Decision Records (ADRs)
-│   ├── terraform.md        # Detailed guide for AWS provisioning & lifecycle
-│   └── ansible.md          # OS baseline, storage orchestration & dual-stack K3s rollout
+│   ├── terraform.md        # AWS PoC provisioning and lifecycle guide
+│   └── ansible.md          # OS hardening, storage orchestration & K3s dual-stack guide
 ├── terraform/
-│   └── aws-poc/            # Infrastructure-as-Code definitions (VPC, EC2, EBS)
-└── ansible/                # Playbooks, roles, and inventory (in progress)
+│   └── aws-poc/            # AWS PoC IaC definitions (VPC, EC2, EBS, Security Groups)
+├── ansible/                # Ansible configuration management
+│   ├── requirements.yaml   # External collection dependencies (ansible.posix, community.general)
+│   ├── site.yaml           # Root orchestration playbook
+│   ├── inventory/          # Target inventories (AWS hosts.yaml, RemoteLab remotelab.yaml)
+│   └── roles/              # Modular roles (os_base, storage_poc, k3s_install)
+└── k8s/                    # Kubernetes GitOps manifests
+    ├── bootstrap/          # ArgoCD App-of-Apps root application (root-app.yaml)
+    └── test-workload/      # Smoke-test workload manifests (Caddy test workload)
 ```
 
 ---
@@ -149,44 +138,54 @@ Security adheres to the **Principle of Least Privilege (PoLP)**:
 
 ### Prerequisites
 
-* AWS CLI installed and configured (`~/.aws/credentials`, configured with `[homelab]` profile by default)
+* AWS CLI configured (profile `[homelab]` by default)
 * Terraform >= 1.5.0
 * Ansible >= 2.15.0
-* Dedicated SSH key pair (default: `~/.ssh/id_ed25519_aws_poc.pub`)
+* Dedicated SSH key pair (default: `~/.ssh/id_ed25519_aws_homelab.pub`)
 
-### Run the PoC Cycle
+### 1. Provision AWS PoC (Phase 1)
 
-1. **Provision Infrastructure (Phase 1):**
-   ```bash
-   cd terraform/aws-poc
-   terraform init
-   terraform apply
-   ```
+```bash
+cd terraform/aws-poc
+terraform init
+terraform apply
+```
 
-2. **Access the Node:**
-   ```bash
-   ssh -F ssh_config aws-k3s-poc
-   ```
+### 2. Connect to the Node
 
-3. **Provision OS Baseline, Storage & K3s (Phase 2 & 3):**
-   ```bash
-   cd ../../ansible
-   ansible-playbook -i inventory/hosts.yaml site.yaml
-   ```
+```bash
+ssh -F ssh_config aws-k3s-poc
+```
 
-4. **Teardown & Cleanup:**
-   To avoid ongoing cloud costs when finished testing:
-   ```bash
-   cd ../terraform/aws-poc
-   terraform destroy
-   ```
+### 3. Provision Baseline & K3s Cluster (Phase 2 & 3)
 
-5. **Stage to RemoteLab (Phase 4.5):**
-   After validating in the cloud, transition to the staging environment by simply switching the Ansible inventory (`-i inventory/remotelab.yaml`) to roll out the identical baseline and K3s stack onto a Hyper-V VM with a public IP:
-   ```bash
-   cd ../../ansible
-   ansible-playbook -i inventory/remotelab.yaml site.yaml
-   ```
+```bash
+cd ../../ansible
+
+# Install collection dependencies
+ansible-galaxy collection install -r requirements.yaml
+
+# Execute playbook against the generated AWS inventory
+ansible-playbook -i inventory/hosts.yaml site.yaml
+```
+
+### 4. Teardown AWS Resources
+
+When finished testing, teardown cloud infrastructure to eliminate costs:
+
+```bash
+cd ../terraform/aws-poc
+terraform destroy
+```
+
+### 5. Deploy to RemoteLab Staging (Phase 4.5)
+
+To target the local Hyper-V staging environment, execute the same playbook against the RemoteLab inventory:
+
+```bash
+cd ../../ansible
+ansible-playbook -i inventory/remotelab.yaml site.yaml
+```
 
 ---
 

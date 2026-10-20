@@ -12,7 +12,7 @@ crash.*.log
 # Ansible
 *.retry
 ansible.log
-# Generierte dynamische Inventare (falls Terraform diese später ablegt)
+# Dynamically generated inventories
 hosts.ini
 inventory.yml
 

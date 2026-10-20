@@ -1,5 +1,5 @@
 output "instance_public_ip" {
-  description = "Die öffentliche IP-Adresse des K3s Servers"
+  description = "Public IPv4 address of the K3s server instance"
   value       = aws_instance.k3s_server.public_ip
 }
 
