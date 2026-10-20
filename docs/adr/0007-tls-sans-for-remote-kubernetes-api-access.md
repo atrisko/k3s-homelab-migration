@@ -24,23 +24,10 @@ Bypassing this via `insecure-skip-tls-verify: true` disables transport security 
 
 We parameterize TLS Subject Alternative Names declaratively through Ansible and K3s's native configuration file:
 
-1. **Role Parameterization (`defaults/main.yaml`):**  
-   Define an overridable list variable `k3s_tls_san: []` in `roles/k3s_install/defaults/main.yaml`.
-2. **Declarative Rendering (`config.yaml`):**  
-   Render the SANs conditionally into `/etc/rancher/k3s/config.yaml`:
-   ```yaml
-   {% if k3s_tls_san | length > 0 %}
-   # Additional Subject Alternative Names for remote API access
-   tls-san:
-   {% for san in k3s_tls_san %}
-     - "{{ san }}"
-   {% endfor %}
-   {% endif %}
-   ```
-3. **Automated Certificate Regeneration via Handler:**  
-   Wire changes in `config.yaml` to an Ansible handler (`Restart k3s`). K3s inspects `tls-san` in `config.yaml` upon restart and dynamically re-issues the API server certificate if new SANs are introduced.
-4. **Environment-Specific Overrides:**  
-   Environments provide their respective DNS/IP endpoints via `group_vars/`, `host_vars/`, or playbook parameters without modifying the core role.
+1. **Role Parameterization:** Define an overridable list variable (`k3s_tls_san: []`) in `roles/k3s_install/defaults/main.yaml`.
+2. **Declarative K3s Configuration:** Render the configured SANs into `/etc/rancher/k3s/config.yaml` (`tls-san:` list).
+3. **Automated Certificate Regeneration via Handler:** Wire changes in `config.yaml` to an Ansible handler (`Restart k3s`). Upon restart, K3s detects new SANs and automatically re-issues the API server serving certificate.
+4. **Environment-Specific Overrides:** Environments supply their respective external DNS names or IPs via inventory variables without modifying the core role.
 
 ## Consequences
 

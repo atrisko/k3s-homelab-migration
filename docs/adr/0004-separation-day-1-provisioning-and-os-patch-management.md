@@ -20,12 +20,12 @@ We decouple operating system patch management from the Day-1 Ansible provisionin
 
 1. **Ansible Role Responsibility:** `roles/os_base` installs baseline utilities, enforces security hardening (SSH, sysctl, journald, module blacklisting), and configures the automated patching subsystem, but does not execute interactive full system upgrades (`upgrade: dist` was removed).
 2. **Automated Security Patching via `unattended-upgrades`:**
-   * Automated updates are strictly constrained to security patches via `Unattended-Upgrade::Origins-Pattern {"origin=Debian,codename=${distro_codename},label=Debian-Security";}`.
+   * Automated updates are strictly constrained to the Debian security stream (`label=Debian-Security`).
    * Execution is scheduled via native systemd timers (`apt-daily.timer`, `apt-daily-upgrade.timer`).
 3. **Kernel Package Blacklisting:**
-   * Kernel packages are explicitly blacklisted (`linux-image*`, `linux-headers*`) from automated installation. Kernel updates introduce ABI changes and driver dependencies (CSI, network interfaces) that require manual administrative scheduling and validation.
+   * Kernel packages (`linux-image*`, `linux-headers*`) are explicitly excluded from automatic updates to prevent unexpected ABI breaks or driver issues.
 4. **Scheduled Maintenance Reboot Window:**
-   * Automatic reboots required by security patches are restricted to an off-peak maintenance window at `03:00` (`Unattended-Upgrade::Automatic-Reboot-Time "03:00"`).
+   * Automatic reboots required by security patches are restricted to an off-peak maintenance window (default: `03:00`).
 5. **Major Distribution & Kernel Upgrades:**
    * Upgrades outside the Debian Security stream and kernel upgrades remain manual administrative procedures executed deliberately after testing in staging environments (RemoteLab).
 

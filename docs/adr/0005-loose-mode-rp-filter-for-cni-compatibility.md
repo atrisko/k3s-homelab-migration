@@ -28,15 +28,9 @@ When strict mode (`1`) is enabled, the host kernel flags this legitimate asymmet
 
 ## Decision
 
-We deliberately configure Reverse Path Filtering in **Loose Mode (`2`)** across all network interfaces in `/etc/sysctl.d/99-kubernetes-hardening.conf`:
+We deliberately configure Reverse Path Filtering in **Loose Mode (`rp_filter = 2`)** across all network interfaces for the Kubernetes host.
 
-```ini
-# Network Anti-Spoofing (Loose mode for CNI/Flannel compatibility)
-net.ipv4.conf.all.rp_filter = 2
-net.ipv4.conf.default.rp_filter = 2
-```
-
-By choosing Loose Mode, the kernel ensures the packet's source IP is known and routable on the system, while permitting asymmetric routing paths inherent to container overlays.
+By choosing Loose Mode, the kernel ensures the packet's source IP is known and routable on the system, while permitting asymmetric routing paths inherent to container overlays and Flannel CNI.
 
 ## Consequences
 

@@ -44,14 +44,6 @@ constraints shape the addressing scheme:
 | Services (`service-cidr`) | `10.43.0.0/16` | `fd85:cc6d:b16f:4300::/112` |
 | LoadBalancer pool (reserved) | `10.55.64.200–249` | `fd85:cc6d:b16f:30::200–249` |
 
-Resulting K3s settings (to be rendered from Ansible variables):
-
-```yaml
-cluster-cidr: "10.42.0.0/16,fd85:cc6d:b16f:4200::/56"
-service-cidr: "10.43.0.0/16,fd85:cc6d:b16f:4300::/112"
-node-ip: "10.55.64.10,fd85:cc6d:b16f:30::10"
-flannel-ipv6-masq: true
-```
 
 ## Consequences
 

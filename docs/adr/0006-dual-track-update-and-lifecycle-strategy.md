@@ -55,13 +55,13 @@ flowchart TD
 ### 2. Track 2: Ephemerally Staged Cloud Validations for Infrastructure Upgrades
 * **Low Update Frequency:** Core platform components (Kubernetes minor releases, ArgoCD chart updates, Debian OS upgrades) are upgraded infrequently (1–3 times per year) and never applied directly to production untested.
 * **Ephemeral AWS Validation Clone:**
-  * Prior to a production platform upgrade, Terraform provisions an on-demand, mirrored instance on AWS (e.g., `t3.2xlarge` with 32 GB RAM in `eu-central-1`).
+  * Prior to a production platform upgrade, Terraform provisions an on-demand, disposable staging instance on AWS.
   * Ansible applies the updated baseline configuration and bootstraps K3s and ArgoCD.
-  * ArgoCD synchronizes the entire application catalog to validate Kubernetes API schema deprecations, CRD migrations, and initialization behavior (without mounting multi-terabyte production data arrays).
-  * After completing a standardized health checklist (typically 2–4 hours of runtime), the staging instance is immediately destroyed via `terraform destroy`.
+  * ArgoCD synchronizes the application catalog to validate Kubernetes API schema deprecations, CRD migrations, and startup behavior (without mounting multi-terabyte production data arrays).
+  * After completing validation (typically 1–2 hours), the staging instance is immediately torn down via `terraform destroy`.
 * **Cost & Safety Controls:**
-  * Cloud run costs are negligible (< $1.50 per upgrade cycle).
-  * Automated AWS Budget Alarms (`aws_budgets_budget`) enforce a strict monthly spending threshold (10 €) to guard against uncoordinated lingering instances.
+  * Ephemeral runtime keeps cloud costs negligible (fractions of a euro per upgrade cycle).
+  * Automated AWS Budget Alarms guard against forgotten lingering instances.
 * **Disaster Recovery Side-Benefit:** Successfully deploying the complete application stack on an ephemeral cloud node continuously validates cold-start reproducibility and disaster recovery readiness.
 
 ## Consequences
