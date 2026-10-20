@@ -65,7 +65,7 @@
     state: directory
     owner: root
     group: root
-    # 0700 is the required secure permission for this internal K3s folder
+    # 0700 standard directory permissions for internal K3s manifests
     mode: '0700'
 
 - name: Deploy ArgoCD HelmChart manifest for K3s auto-deploy

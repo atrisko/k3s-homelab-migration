@@ -13,7 +13,7 @@ This document covers the technical architecture, security baselines, and resourc
 * **Core Variables:**
   * `aws_region`: Deployment region (default: `"eu-central-1"`).
   * `aws_profile`: AWS CLI credentials profile (default: `"homelab"`).
-  * `instance_type`: Virtual machine size (default: `"t3.small"`, providing 2 GB RAM for K3s + ArgoCD within AWS Free Tier limits).
+  * `instance_type`: Virtual machine size (default: `"t3.small"`, low-cost instance providing 2 GB RAM for K3s + ArgoCD at ~0.10–0.20 € per 2–4 h test cycle).
   * `admin_cidr`: Whitelisted CIDR for administrative access. If null, dynamically discovered via `https://checkip.amazonaws.com`.
   * `ssh_public_key_path`: Path to the dedicated Ed25519 key pair (default: `"~/.ssh/id_ed25519_aws_homelab.pub"`).
 
@@ -71,7 +71,7 @@ Terraform bridges infrastructure provisioning with Ansible automation by generat
    * Generates a local `ssh_config` (mode `0600`) aliasing `aws-k3s-poc` to the instance's public IP.
    * Configures `IdentitiesOnly yes`, points to the matching private key, and prevents host-key prompt collisions on disposable instances (`UserKnownHostsFile /dev/null`, `StrictHostKeyChecking no`).
 2. **Dynamic Ansible Inventory (`local_file.ansible_inventory`):**
-   * Automatically renders `ansible/inventory/hosts.yaml` with the public IP, SSH bridge arguments, and the persistent `data_disk_device` path.
+   * Automatically renders `ansible/inventory/hosts.yaml` referencing the generated SSH bridge (`-F ssh_config`) and the persistent `data_disk_device` path.
 3. **Outputs (`outputs.tf`):**
    * `instance_public_ip`: Target server public IP.
    * `admin_cidr`: Active operator CIDR whitelist.

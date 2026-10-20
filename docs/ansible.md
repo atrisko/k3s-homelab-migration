@@ -6,7 +6,7 @@ This document describes the configuration management, OS hardening, storage prov
 
 ## 1. Orchestration Architecture & Workflow
 
-The Ansible setup automates the **Day-1 provisioning** of target nodes, preparing a Debian system (tested on Debian 12/13) to serve as a dual-stack K3s Kubernetes host with an autonomous GitOps engine.
+The Ansible setup automates the **Day-1 provisioning** of target nodes, preparing a Debian 13 (Trixie) system to serve as a dual-stack K3s Kubernetes host with an autonomous GitOps engine.
 
 ```mermaid
 flowchart LR
@@ -19,12 +19,12 @@ flowchart LR
     end
 
     subgraph Pipeline ["Role Execution Pipeline"]
-        R1["1. os_base<br/>(OS Hardening & Prereqs)"]
-        R2["2. storage_poc<br/>(Disk Mounts & Guard)"]
-        R3["3. k3s_install<br/>(IPv6 ULA, K3s, Mount Guard & ArgoCD)"]
+        R1["1. os_base<br/>(OS Hardening, ULA & Prereqs)"]
+        R2["2. storage_poc<br/>(Disk Mounts & Safety Check)"]
+        R3["3. k3s_install<br/>(K3s Runtime & ArgoCD Bootstrap)"]
     end
 
-    subgraph TargetNode ["Target Node (Debian 12/13)"]
+    subgraph TargetNode ["Target Node (Debian 13)"]
         Base["Hardened Debian Baseline"]
         DataVol["Storage Mount<br/>(/mnt/appdata)"]
         K3s["K3s Cluster Engine<br/>(Dual-Stack Dual-IP)"]
@@ -48,7 +48,7 @@ flowchart LR
   * `roles_path = ./roles`: Modular role directory.
   * `host_key_checking = False`: Prevents interactive SSH host-key prompts on freshly provisioned disposable instances.
   * `stdout_callback = debug`: Human-readable console output.
-  * `pipelining = True`: Reuses SSH connections and executes Python tasks in memory to reduce network latency.
+  * `pipelining = True`: Executes Python tasks directly via `stdin` on the target node instead of transferring temporary files per task, reducing round-trip latency.
 * **Inventories:**
   * **`inventory/hosts.yaml` (AWS Cloud PoC):** Routes SSH traffic via the dynamically generated OpenSSH configuration from Terraform (`ansible_ssh_common_args: '-F ../terraform/aws-poc/ssh_config'`). Defines `data_disk_device` using the persistent udev path `/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_<vol_id>` exported by Terraform.
   * **`inventory/remotelab.yaml` (RemoteLab Test VM):** Targets the local test node (`10.100.34.71`) as user `alex`, specifying a persistent SCSI WWID path (`/dev/disk/by-id/scsi-...`) for the storage disk.
@@ -71,7 +71,7 @@ The `os_base` role establishes baseline hygiene, installs container storage prer
 * **Base Packages (`os_base_packages`):** Default list installs `curl`, `git`, `htop`, `jq`, `open-iscsi`, `unattended-upgrades`, `apt-listchanges`, `systemd-timesyncd`, and `nfs-common` (required for K8s CSI persistent storage mounts).
 * **Automated Security Updates (`unattended-upgrades`):**
   * Configured via `/etc/apt/apt.conf.d/50unattended-upgrades` to restrict automatic updates to security patches (`label=Debian-Security`).
-  * Kernel images and headers (`linux-image*`, `linux-headers*`) are blacklisted from uncoordinated auto-reboots.
+  * Kernel images and headers (`linux-image*`, `linux-headers*`) are blacklisted from automated package upgrades (kernel updates are coordinated via planned maintenance).
   * Configured with automatic reboot window scheduled via `os_reboot_time` (default: `"03:00"`).
   * Update schedules configured via `os_auto_clean_days` (default: `"7"`).
   * Verified active via systemd timers (`apt-daily.timer`, `apt-daily-upgrade.timer`).
@@ -127,7 +127,7 @@ The `os_base` role establishes baseline hygiene, installs container storage prer
 
 ### Sudoers Security & Non-Interactive Automation
 * Deploys `/etc/sudoers.d/00-hardening` (`Defaults use_pty`, `Defaults logfile="/var/log/sudo.log"`).
-* Deploys `/etc/sudoers.d/10-ansible` granting `{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL` (mode `0440`, syntax-validated via `visudo -cf %s`), enabling non-interactive Ansible automation and CI/CD pipelines without plaintext passwords in runners.
+* Deploys `/etc/sudoers.d/10-ansible` granting `{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL` (mode `0440`, syntax-validated via `visudo -cf %s`), enabling non-interactive Ansible automation without plaintext passwords or interactive prompts.
 
 ---
 
@@ -195,7 +195,7 @@ default-local-storage-path: "{{ k3s_storage_path }}"
 
 ## 5. K3s Lifecycle & GitOps Bootstrap Engine (`roles/k3s_install`)
 
-The role bootstraps the K3s engine and ArgoCD using a dual-track strategy (ADR-0006) to decouple controller installation from application delivery:
+The role bootstraps the K3s engine and ArgoCD, decoupling platform runtime provisioning from application GitOps delivery:
 
 1. **Manifest Directory Provisioning:** Creates `/var/lib/rancher/k3s/server/manifests` (mode `0700`, `root:root`).
 2. **Declarative ArgoCD HelmChart (`argocd.yaml`):** Deploys a K3s `HelmChart` custom resource into the auto-deploy directory:
@@ -206,9 +206,9 @@ The role bootstraps the K3s engine and ArgoCD using a dual-track strategy (ADR-0
    * Executes `/tmp/k3s-install.sh` with `INSTALL_K3S_VERSION: "{{ k3s_version }}"` (default: `"v1.37.1+k3s1"`) only if uninstalled or version differs.
 4. **CRD Establishment Wait:**
    * Polls `crd/applications.argoproj.io` until established, using configurable timings (`k3s_argocd_wait_retries: 24`, `k3s_argocd_wait_delay: 5`).
-5. **Decoupled App-of-Apps Root Application:**
+5. **Decoupled Root Application:**
    * Applies `k8s/bootstrap/root-app.yaml` via `k3s kubectl apply`.
-   * **Dual-Reconciler Prevention (ADR-0006):** Placed outside K3s's auto-deploy directory so that only ArgoCD reconciles application manifests without competing against K3s's filesystem watcher.
+   * **Dual-Reconciler Prevention:** Placed outside K3s's auto-deploy directory so that only ArgoCD reconciles application manifests without competing against K3s's filesystem watcher.
 
 ---
 
