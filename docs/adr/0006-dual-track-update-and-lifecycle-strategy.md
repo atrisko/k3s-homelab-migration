@@ -13,7 +13,7 @@ In traditional homelab environments (such as Unraid with Community Applications)
 
 Conversely, maintaining a permanent, identically sized on-premise staging cluster 24/7 is cost-prohibitive in hardware, power consumption, and administrative overhead—especially as access to dedicated local test virtualization (RemoteLab) is temporary.
 
-We require an operational update strategy that balances rapid application iteration with enterprise-grade stability and disaster recovery for core infrastructure components.
+We require an operational update strategy that balances rapid application iteration with high operational stability and disaster recovery for core infrastructure components.
 
 ## Decision
 
@@ -36,7 +36,7 @@ flowchart TD
         InfraUp["OS / K3s / ArgoCD Upgrade<br/>(1-3x per Year)"]
         TF["Terraform Apply<br/>(Ephemeral AWS Staging Clone)"]
         Ans["Ansible Baseline & Bootstrap"]
-        Test["E2E Validation & Health Check<br/>(2-4h Runtime, < $2.00)"]
+        Test["E2E Validation & Health Check<br/>(2-4h Runtime, ~0.10-0.20 €)"]
         Destroy["Terraform Destroy<br/>(Immediate Teardown)"]
         ProdInfra["Production Bare-Metal Apply"]
 
@@ -50,18 +50,18 @@ flowchart TD
 * **Automated Dependency Auditing:** Automated tools (such as **Renovate**) periodically audit dependencies and submit Pull Requests with comprehensive release notes.
   * *Patch Updates:* Eligible for automated merging and deployment.
   * *Minor/Major Updates:* Require administrative approval after reviewing changelogs.
-* **Instant Rollback Guarantee:** In the event of an application regression, executing `git revert <commit-hash>` restores the previous known-good state within seconds via ArgoCD. Minor, temporary application downtime is acceptable in a homelab context.
+* **Rapid Rollback via Git:** In the event of a stateless application regression, executing `git revert <commit-hash>` restores the previous known-good state within seconds via ArgoCD. Note: for stateful applications with schema migrations (e.g. Nextcloud, Paperless), `git revert` alone cannot reverse database changes; stateful upgrades require pre-upgrade database snapshots or backups.
 
 ### 2. Track 2: Ephemerally Staged Cloud Validations for Infrastructure Upgrades
 * **Low Update Frequency:** Core platform components (Kubernetes minor releases, ArgoCD chart updates, Debian OS upgrades) are upgraded infrequently (1–3 times per year) and never applied directly to production untested.
 * **Ephemeral AWS Validation Clone:**
   * Prior to a production platform upgrade, Terraform provisions an on-demand, disposable staging instance on AWS.
   * Ansible applies the updated baseline configuration and bootstraps K3s and ArgoCD.
-  * ArgoCD synchronizes the application catalog to validate Kubernetes API schema deprecations, CRD migrations, and startup behavior (without mounting multi-terabyte production data arrays).
+  * ArgoCD synchronizes a defined validation subset of applications (core CRDs, ingress routing, and representative stateless workloads) to validate Kubernetes API schema deprecations and startup behavior without deploying services that require local bare-metal resources (such as GPU passthrough, hostPath array pools, or on-premise secrets).
   * After completing validation (typically 1–2 hours), the staging instance is immediately torn down via `terraform destroy`.
 * **Cost & Safety Controls:**
-  * Ephemeral runtime keeps cloud costs negligible (fractions of a euro per upgrade cycle).
-  * Automated AWS Budget Alarms guard against forgotten lingering instances.
+  * Ephemeral runtime keeps cloud costs negligible (~0.10–0.20 € per upgrade cycle).
+  * Optional AWS Budget Alarms provide a safety guardrail against forgotten lingering instances.
 * **Disaster Recovery Side-Benefit:** Successfully deploying the complete application stack on an ephemeral cloud node continuously validates cold-start reproducibility and disaster recovery readiness.
 
 ## Consequences
@@ -69,7 +69,7 @@ flowchart TD
 **Positive:**
 * **Risk Decoupling:** Routine application updates proceed with high agility, while high-risk infrastructure migrations are thoroughly de-risked before touching bare metal.
 * **Disaster Recovery Verification:** The ephemeral staging pipeline serves as a recurring, automated test of whether the entire homelab can be reconstructed from scratch purely from Git.
-* **Minimal Financial Overhead:** Zero hardware acquisition costs for a dedicated physical staging lab; cloud testing costs are limited to small change (< 5 € per year).
+* **Minimal Financial Overhead:** Zero hardware acquisition costs for a dedicated physical staging lab; cloud testing costs are limited to minimal operational expenses (~0.10–0.20 € per cycle).
 * **Deterministic Audit Trail:** Every single change—whether an app image bump or a K3s release—is codified in Git history.
 
 **Negative & Trade-offs:**

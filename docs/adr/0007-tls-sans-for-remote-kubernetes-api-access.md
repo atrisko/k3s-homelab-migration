@@ -32,9 +32,9 @@ We parameterize TLS Subject Alternative Names declaratively through Ansible and 
 ## Consequences
 
 **Positive:**
-* **Strict Transport Security:** Remote administrative access over `kubectl` succeeds with full TLS validation; no `--insecure-skip-tls-verify` workaround required.
+* **Robust Transport Security:** Remote administrative access over `kubectl` succeeds with full TLS validation; no `--insecure-skip-tls-verify` workaround required.
 * **Declarative Single Source of Truth:** All node parameters remain in `/etc/rancher/k3s/config.yaml`, avoiding fragmented systemd unit overrides or CLI flags in `INSTALL_K3S_EXEC`.
-* **Zero-Touch Certificate Lifecycle:** Updating `k3s_tls_san` automatically regenerates the server certificate via the reactive systemd handler without requiring manual file deletions in `/var/lib/rancher/k3s/server/tls/`.
+* **Automated Certificate Lifecycle:** Updating `k3s_tls_san` automatically regenerates the server certificate via the reactive systemd handler without requiring manual file deletions in `/var/lib/rancher/k3s/server/tls/`.
 * **Multi-Environment Isolation:** Staging (RemoteLab), Cloud (AWS), and Bare-Metal production can declare completely different domains and IPs cleanly.
 
 **Negative / Trade-offs:**
@@ -45,4 +45,5 @@ We parameterize TLS Subject Alternative Names declaratively through Ansible and 
 
 * **Client-Side `insecure-skip-tls-verify`:** Rejected due to unacceptable security risks (MITM vulnerability on administrative credentials).
 * **Imperative CLI Flags via `INSTALL_K3S_EXEC`:** Rejected because it scatters configuration into `/etc/systemd/system/k3s.service.env` rather than maintaining a centralized declarative `/etc/rancher/k3s/config.yaml`.
+* **SSH Port Forwarding (Tunneling):** Accessing the cluster via `ssh -L 6443:localhost:6443` connects to `127.0.0.1`, which is already included in default certificates. While valid and used as our primary access path for the ephemeral AWS PoC (allowing port 6443 to remain closed externally), declarative SAN support remains necessary for direct LAN and VPN access on bare metal without requiring background SSH sessions.
 * **External Reverse Proxy for API Server:** Rejected as over-engineering for Day-1 provisioning; K3s natively handles dynamic SAN extension and certificate rotation out of the box.

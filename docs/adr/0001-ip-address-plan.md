@@ -59,6 +59,7 @@ constraints shape the addressing scheme:
 
 * Each node needs **both** a static ULA and (via SLAAC) a GUA. The ULA must be
   configured persistently on the node, not with a runtime-only `ip addr add`.
+* IPv6 forwarding (`net.ipv6.conf.all.forwarding = 1`) disables SLAAC router advertisements by default unless `accept_ra = 2` is explicitly configured on the interface.
 * Public reachability over IPv6 requires extra work: dynamic DNS (AAAA record)
   and a firewall alias that follows the changing prefix.
 * Internal traffic often prefers IPv4 over ULA (RFC 6724), so IPv6 may be
@@ -80,4 +81,4 @@ constraints shape the addressing scheme:
 
 * Verify in OPNsense that the delegated prefix is a `/56` (Prefix IDs `0x10`–`0x70`).
 * Decide how the reverse proxy is exposed (DMZ VM vs. other options) in a separate
-  ADR (ADR-0002).
+  ADR ([ADR-0003](0003-caddy-instance-in-vm-as-reverse-proxy.md)).

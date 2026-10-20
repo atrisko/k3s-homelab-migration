@@ -1,6 +1,6 @@
 # ADR-0003: Caddy Instance in VM as Reverse Proxy
 
-* **Status:** Accepted
+* **Status:** Proposed
 * **Date:** 2026-10-14
 
 ## Context
@@ -17,7 +17,7 @@ The Caddy VM will be configured to forward traffic for specific subdomains to th
 
 **Positive**
 
-* **Hardened Security:** Caddy runs on Debian 13 (Trixie) in an isolated VM with a strictly limited attack surface, decoupled from the K3s cluster.
+* **Hardened Security:** Caddy runs on Debian 13 (Trixie) in an isolated VM with a minimal attack surface, decoupled from the K3s cluster.
 * **Simplicity:** One binary, one configuration file, and minimal dependencies make Caddy easy to manage and troubleshoot.
 * **Cost Efficiency:** Caddy runs on a lightweight VM with minimal resource requirements; no additional physical hardware needed.
 
@@ -25,7 +25,7 @@ The Caddy VM will be configured to forward traffic for specific subdomains to th
 
 * **Management overhead:** Adds another OS instance (Debian VM) to maintain, patch, and monitor alongside the K3s host.
 * **Client IP preservation:** Traefik must be configured with `forwardedHeaders.trustedIPs` pointing to Caddy; otherwise, backend workloads only see Caddy's private IP in logs and access controls.
-* **Host networking discipline:** The K3s host must attach to the DMZ VLAN strictly via an unnumbered L2 bridge (no host IP address assigned), ensuring the host itself cannot be accessed from the DMZ.
+* **Host networking discipline:** The K3s host attaches to the DMZ VLAN via an unnumbered L2 bridge (no host IP address assigned), ensuring the host itself cannot be accessed from the DMZ.
 * **Additional hop:** Slight latency overhead by proxying through Caddy before hitting Traefik.
 
 ## Alternatives considered

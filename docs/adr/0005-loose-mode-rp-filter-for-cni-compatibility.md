@@ -21,10 +21,11 @@ Reverse Path Filtering (`rp_filter`) is designed to mitigate IP address spoofing
 Kubernetes host nodes utilize container network interfaces (CNI), overlay networks (Flannel VXLAN/Host-GW), virtual ethernet pairs (`veth`), and proxy routing mechanisms (`kube-proxy`, NodePort, LoadBalancers, and Ingress controllers). 
 
 In this architecture, network paths are frequently **asymmetric**:
-* Ingress traffic may enter through physical interface `eth0`, get routed to a pod on another node via an overlay interface (`flannel.1`), and have its response handled along a different path.
-* NodePort requests often arrive at one node and are forwarded to a pod hosted on a secondary node.
+* Even on a single-node host, traffic traverses multiple disparate network interfaces: physical VLAN interfaces (VLAN 30), DMZ bridge interfaces (`br70`), Flannel overlay devices (`flannel.1`), CNI bridge interfaces (`cni0`), and virtual IPs allocated by MetalLB.
+* Ingress requests may enter via physical interface `eth0`, get routed through local virtual bridges, and have return traffic routed through differing interface endpoints.
+* Multi-node clusters amplify this asymmetry when cross-node pods or NodePorts forward traffic across nodes.
 
-When strict mode (`1`) is enabled, the host kernel flags this legitimate asymmetric container traffic as spoofed and **silently drops the packets**. This causes intermittent, difficult-to-diagnose connection timeouts for cluster workloads, cross-node pod communication, and external Ingress routing.
+When strict mode (`1`) is enabled, the host kernel flags this legitimate asymmetric container traffic as spoofed and **silently drops the packets**. This causes intermittent, difficult-to-diagnose connection timeouts for cluster workloads, pod communication, and external Ingress routing.
 
 ## Decision
 
@@ -37,7 +38,7 @@ By choosing Loose Mode, the kernel ensures the packet's source IP is known and r
 **Positive:**
 * **Reliable Container Networking:** Prevents silent packet drops during cross-node pod communication, Flannel overlay routing, NodePort proxying, and Ingress traffic.
 * **Basic Anti-Spoofing Intact:** Still validates that incoming source IPs are routable on the host, rejecting completely unroutable/invalid forged source addresses (unlike mode `0`).
-* **Deterministic Dual-Stack Behavior:** Works seamlessly alongside host IPv4 interfaces and our IPv6 ULA island setup (ADR-0001).
+* **Multi-Interface Stability:** Ensures uninterrupted routing across multiple local interfaces (VLAN 30, MetalLB virtual IPs, bridge devices, and CNI interfaces). Note: `rp_filter` applies exclusively to IPv4; IPv6 traffic relies on RFC-compliant neighbor discovery and routing tables without an equivalent sysctl.
 
 **Negative & Trade-offs:**
 * **Broader Acceptance Window:** An attacker within a shared Layer-2 network could theoretically send packets with source addresses belonging to other interfaces on the same host, which loose mode does not discard. In our homelab environment, perimeter firewalls and isolated VLANs mitigate this risk.

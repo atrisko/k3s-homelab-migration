@@ -15,10 +15,12 @@ This folder documents significant architecture decisions of this project:
 
 ## Statuses
 
-New ADRs start as `Accepted`. Later they may become:
+New ADRs typically start as `Proposed` or `Accepted`:
 
-* `Superseded by ADR-XXXX`: replaced by a newer decision.
-* `Deprecated`: no longer valid, without a successor.
+* `Proposed`: Planned for an upcoming phase (design accepted, not yet implemented in code).
+* `Accepted`: Decided and active in the codebase.
+* `Superseded by ADR-XXXX`: Replaced by a newer decision.
+* `Deprecated`: No longer valid, without a successor.
 
 ## Index
 
@@ -26,7 +28,7 @@ New ADRs start as `Accepted`. Later they may become:
 | :--- | :--- | :--- |
 | [0001](0001-ip-address-plan.md) | IP Address Plan (Dual-Stack) | Accepted |
 | [0002](0002-remotelab-ansible-control-node.md) | RemoteLab Ansible Control Node (Dedicated VM vs. WSL 2) | Accepted |
-| [0003](0003-caddy-instance-in-vm-as-reverse-proxy.md) | Caddy Instance in VM as Reverse Proxy | Accepted |
+| [0003](0003-caddy-instance-in-vm-as-reverse-proxy.md) | Caddy Instance in VM as Reverse Proxy | Proposed |
 | [0004](0004-separation-day-1-provisioning-and-os-patch-management.md) | Separation between Day-1 Provisioning and OS Patch Management | Accepted |
 | [0005](0005-loose-mode-rp-filter-for-cni-compatibility.md) | Loose-Mode Reverse Path Filtering (rp_filter) for Kubernetes CNI Compatibility | Accepted |
 | [0006](0006-dual-track-update-and-lifecycle-strategy.md) | Dual-Track Update and Lifecycle Strategy | Accepted |
