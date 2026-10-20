@@ -1,7 +1,7 @@
 # 📋 Project Roadmap & Task List: K3s Homelab Migration
 
 > **Status:** Phase 3 (K3s Bootstrap & Runtime) · State: October 2026  
-> **References:** [README.md](../README.md) · [docs/adr/](adr/)
+> **References:** [README.md](../README.md) · [docs/adr/](adr/) · [docs/reviews/](reviews/)
 
 ---
 
@@ -14,7 +14,7 @@
 - [x] Generate dynamic `ssh_config` via Terraform for seamless login (`terraform/aws-poc/main.tf`)
 - [x] Verify successful SSH connection via `ssh -F ssh_config aws-k3s-poc`
 - [x] Provide Terraform output for persistent EBS volume ID (`outputs.tf`)
-- [x] **Security & Hardening (Review 3.7):**
+- [x] **Security & Hardening Baseline:**
   - [x] Restrict K8s API (port 6443) and SSH to operator IP (`admin_cidr`) instead of `0.0.0.0/0`
   - [x] AMI Lifecycle Guard: `lifecycle { ignore_changes = [ami] }` prevents instance replacement on upstream Debian AMI updates
   - [x] Enforce IMDSv2 (`metadata_options { http_tokens = "required" }`) against SSRF attacks
@@ -44,10 +44,10 @@
   - [x] Immediate non-destructive runtime activation via `ip -6 addr replace`
 - [x] **Role `storage_poc`:**
   - [x] Format EBS volume & mount to `/mnt/appdata`
-  - [x] Persistent device identification via `/dev/disk/by-id/` (Review 3.3 solved)
+  - [x] Persistent device identification via `/dev/disk/by-id/` (device name independence)
   - [x] Mount option `nofail` configured (prevents boot hangs on detached disks)
-  - [x] Mount Guard: pre-flight check preventing accidental root disk formatting
-- [x] **Ansible Refactoring & Best Practices (Review 3.8):**
+  - [x] Storage safety assertion: pre-flight assertion verifying that target storage device variable is defined
+- [x] **Ansible Role Modularization & Defaults:**
   - [x] Create `requirements.yaml` for external collections (`ansible.posix`, `community.general`)
   - [x] Define role variables in `defaults/main.yaml` overridable via inventory `group_vars/`
 
@@ -61,23 +61,31 @@
 - [x] Redirect K3s local-path provisioner to dedicated SSD storage (`default-local-storage-path: "/mnt/appdata"`)
 - [x] Install K3s via `/tmp/k3s-install.sh`
 - [x] Enable and start K3s systemd service
-- [x] Bootstrap ArgoCD via K3s `HelmChart` CRD (`kube-system/argocd`) with pinned chart version (7.7.16) (Review 3.2 solved)
+- [x] Bootstrap ArgoCD via K3s `HelmChart` CRD (`kube-system/argocd`) with pinned chart version (7.7.16)
 - [x] Create decoupled root application (`k8s/bootstrap/root-app.yaml`) and apply via task
+- [x] Connect ArgoCD to GitHub repository and assign sync permissions (`root-app` syncs from public repository)
 - [x] Deploy smoke-test workload (Caddy in `k8s/test-workload/caddy.yaml`) declaratively via GitOps
-- [x] **🔴 Review 3.5: K3s Versioning & Restart Handler**
+- [x] **K3s Versioning & Restart Handler:**
   - [x] Pin K3s version (`INSTALL_K3S_VERSION: "{{ k3s_version }}"` in `defaults/main.yaml`)
   - [x] Idempotent upgrade check (evaluate `k3s --version`, execute script only when version differs)
   - [x] Connect `Restart k3s` handler on `config.yaml` modifications
-- [x] **🟠 Review 3.6: Remote `kubectl` & TLS-SAN:**
+- [x] **Remote `kubectl` & TLS-SAN Configuration:**
   - [x] Declare `k3s_tls_san` in `defaults/main.yaml` and integrate dynamic `tls-san` block in `config.yaml`
   - [x] ADR-0007: Declarative TLS Subject Alternative Names (SANs) for remote K8s API access
   - [x] Refine access model: API port 6443 restricted to `admin_cidr`; remote access primarily via SSH port forwarding (`ssh -L 6443:localhost:6443`)
+- [ ] **Runtime Storage Guard (Review 2 R2-1):**
+  - [ ] Add systemd drop-in with `RequiresMountsFor={{ storage_mount_point }}` to `k3s.service`
+  - [ ] Apply `chattr +i` to the underlying mount directory before mounting (fails write attempts if storage is detached, preventing silent root disk pollution)
+- [ ] **ArgoCD Modernization (Review 2 R2-2):**
+  - [ ] Upgrade ArgoCD `HelmChart` CR to a supported 3.x chart line
+  - [ ] Document version compatibility matrix in ADR-0006
 - [ ] **Ingress & MetalLB Network Preparation (VLAN 30):**
+  - [ ] Disable K3s ServiceLB (`disable: [servicelb]` in `config.yaml`) to prevent conflicts with MetalLB
   - [ ] Define MetalLB L2-AddressPool for VLAN 30 (`10.55.64.200 - 10.55.64.249`) (Traefik .200, Pi-hole .201, Omada .202)
   - [ ] Configure Traefik service with `externalTrafficPolicy: Local` (client IP preservation without SNAT)
-  - [ ] Secure Traefik Ingress Controller with `forwardedHeaders.trustedIPs` pointing to Caddy (`10.55.192.10/32`, `<P>:70::10/128`)
+  - [ ] Secure Traefik Ingress Controller with `forwardedHeaders.trustedIPs` pointing to Caddy (`10.55.192.10/32`, `fd85:cc6d:b16f:70::10/128`)
 - [ ] Securely export kubeconfig to local workstation (without committing to Git or storing unprotected)
-- [ ] Decide on GitOps secrets management strategy (e.g. External Secrets Operator + 1Password or SOPS + age) – required before Phase 6 (Review 3.9)
+- [ ] Decide on GitOps secrets management strategy (e.g. External Secrets Operator + 1Password or SOPS + age) – required before Phase 6
 - [ ] *Optional:* Prepare Intel GPU Device Plugin for hardware transcoding in K3s
 - [ ] *Optional:* Set up K9s on control node for cluster inspection
 
@@ -88,7 +96,7 @@
 
 - [ ] Define pipeline logic: syntax check & linting for Ansible playbooks (`ansible-lint`, `yamllint`)
 - [ ] Establish local pre-commit hooks (`ansible-lint`, `terraform fmt`, `gitleaks`)
-- [ ] **Runner Security Strategy (Review 3.4):**
+- [ ] **Runner Security Strategy:**
   - [ ] Public repository safety: avoid unauthenticated self-hosted runners with direct LAN/SSH access
   - [ ] Restrict automated CI pipelines to linting & dry-run checks (`--check --diff`)
 - [ ] Configure GitHub repository secrets for SSH authentication in AWS PoC
@@ -109,47 +117,41 @@
 - [x] Configure inventory `inventory/remotelab.yaml` & SCSI WWID storage addressing
 - [ ] Provision Debian 13 VM in RemoteLab (`site.yaml`)
 - [ ] Validate dual-stack behavior with real router/SLAAC + static ULA in home network
+- [ ] Verify 24-hour SLAAC stability under IPv6 forwarding (`accept_ra = 2` verification)
 - [ ] **Caddy $\rightarrow$ Traefik Ingress & Header Staging Test (ADR-0003):**
   - [ ] Test Caddy reverse proxy forwarding to Traefik LoadBalancer IP
   - [ ] Verify header propagation (`X-Forwarded-For`, `X-Real-IP`) & Traefik `trustedIPs` on test workload
   - [ ] Validate MetalLB L2-AddressPool in local test subnet
   - [ ] Test passwordless sudo for Ansible user (`/etc/sudoers.d/10-ansible`)
-- [ ] Conduct idempotency & reboot audit (second playbook run reports `changed=0`, K3s survives host reboot)
+- [ ] Conduct idempotency & reboot audit:
+  - [ ] Second playbook run reports `changed=0`
+  - [ ] K3s survives host reboot cleanly
+  - [ ] Detached storage reboot test: verify K3s service fails safely without polluting root disk
 
 ---
 
 ## 🖥️ Phase 5: Bare-Metal Foundation (The Hardware Platform)
-*Goal: Deploy the validated architecture onto physical hardware – completely isolated from production data.*
+*Goal: Deploy the validated architecture onto physical hardware – cleanly isolated from production data.*
 
 - [ ] Prepare physical hardware & install base Debian 13 on system SSD
-- [ ] **3-Tier Storage & NVMe Architecture (Decoupling OS from Workload I/O):**
+- [ ] **Decoupled 2-Tier Storage Setup for Base System:**
   - [ ] **Tier 1 (OS):** Dedicated SATA SSD for Debian 13 base system (disposable, protects from I/O wear)
   - [ ] **Tier 2 (Appdata & K3s Runtime):** 1 TB M.2 NVMe formatted as single-disk pool (ZFS or Btrfs)
     - [ ] Online mirror preparation: format filesystem allowing non-disruptive online mirror attach (`zpool attach` or `btrfs balance`) once second M.2 is installed
     - [ ] K3s I/O decoupling: configure `data-dir: /mnt/appdata/k3s` (containerd, pod overlays, SQLite WAL) and `default-local-storage-path: /mnt/appdata/storage`
-    - [ ] Array cache: use M.2 NVMe as high-speed write cache / ingest tier for storage array
-    - [ ] Mover automation: systemd timer / script (`mergerfs-mover`) to migrate completed media to HDDs overnight
-  - [ ] **Tier 3 (Bulk Array):** In-place migration of Unraid HDDs via `mergerfs` + `SnapRAID`
+    - [ ] Cache & Ingest partitioning: dedicated volume/dataset with quota for staging ingest prior to array offloading
 - [ ] **Network & DMZ Isolation (VLAN 30 & VLAN 70):**
   - [ ] Configure 802.1q VLAN trunking on physical network interface via Ansible
   - [ ] Assign host interface to VLAN 30 (`10.55.64.10` / `fd85:cc6d:b16f:30::10`)
   - [ ] Unnumbered Linux bridge (`br70`) on tagged subinterface (`<nic>.70`) without IPv4 for KVM DMZ passthrough
   - [ ] Host isolation: disable IPv6 link-local on DMZ bridge & subinterface (`net.ipv6.conf.br70.disable_ipv6 = 1`)
-- [ ] **KVM Hypervisor & Caddy VM (DMZ Ingress):**
+- [ ] **KVM Hypervisor & Caddy VM (DMZ Ingress per ADR-0003):**
   - [ ] Install KVM/QEMU & libvirt packages on Debian
   - [ ] Declaratively provision Caddy VM (VLAN 70: `10.55.192.10`, bound to `br70`)
   - [ ] Deploy Caddyfile for automated Let's Encrypt TLS termination & reverse proxy to Traefik (`10.55.64.200`)
-- [ ] Execute `os_base` role on bare metal (dual-stack, hardening, NTP, automated updates, NOPASSWD sudo)
-- [ ] **Role `storage_baremetal`:**
-  - [ ] Mount HDDs via persistent `/dev/disk/by-id/` device symlinks
-  - [ ] Configure `mergerfs` and `SnapRAID` via Ansible
-  - [ ] Verify disk encryption (`cryptsetup` / LUKS if applicable)
-- [ ] **Parity Safety Strategy (Review 4.2):**
-  - [ ] Unraid parity is **not** compatible with SnapRAID
-  - [ ] Mount data disks read-only initially (`ro,norecovery`)
-  - [ ] Compute SnapRAID parity only after data integrity is verified (preserve rollback capability)
-- [ ] Add bare-metal host to Ansible inventory
-- [ ] Execute playbook against physical system (target: clean, running K3s cluster)
+- [ ] Execute `os_base` and `k3s_install` roles on bare metal
+- [ ] Add bare-metal host to Ansible inventory (`inventory/production.yaml`)
+- [ ] Execute playbook against physical system (target: clean, running K3s base platform without production workloads)
 
 ---
 
@@ -159,10 +161,9 @@
 - [x] Install ArgoCD via Ansible HelmChart CRD in cluster (Phase 3 PoC)
 - [ ] Finalize repository structure for workloads (`k8s/bootstrap/`, `k8s/infra/`, `k8s/apps/`)
 - [ ] Set initial ArgoCD admin password declaratively (e.g. via Ansible Vault or Secrets Operator)
-- [ ] Connect ArgoCD to GitHub repository and assign sync permissions
-- [ ] Deploy secrets provider in cluster (e.g. External Secrets Operator with 1Password Connect)
+- [ ] Deploy secrets provider in cluster (e.g. External Secrets Operator with 1Password Connect / Service Account)
 - [ ] **Dual-Stack Validation:** Verify ArgoCD pods obtain valid dual-stack IPv4/IPv6 pod IPs upon cluster launch
-- [ ] App-of-Apps validation: deploy dummy container, test automatic synchronization and drift correction (self-healing)
+- [ ] App-of-Apps validation: establish root Application pointing to `k8s/apps/`, verify automatic sync and drift correction (self-healing)
 - [ ] **Standard Monitoring Stack via GitOps (`k8s/infra/monitoring/`):**
   - [ ] Deploy `kube-prometheus-stack` Helm chart via ArgoCD:
     - [ ] **Prometheus Operator:** Central metrics collection for cluster, pods, and control plane
@@ -179,11 +180,11 @@
 - [x] ADR-0006: Dual-Track Update & Lifecycle Strategy adopted (OS security updates vs. playbook K3s upgrades)
 - [ ] **SnapRAID Automation:** Script (`snapraid-runner`) with `sync`/`scrub` configured as systemd timer
 - [ ] **K3s State Backup:** Daily backup of SQLite/etcd database (`/var/lib/rancher/k3s/server/db` + token) to external storage
-- [ ] **Appdata Backup:** Restic/Borg backup for `/mnt/appdata` (PVs) with encryption and systemd timer
+- [ ] **Appdata Backup:** Restic/Borg backup for `/mnt/appdata` (PVs) with application-consistent hooks and systemd timer
 - [ ] **Hardware, Storage & Backup Monitoring:**
   - [ ] **S.M.A.R.T. Monitoring:** `prometheus-smartctl-exporter` for drive health (pending sectors, NVMe wear level)
   - [ ] **Job & Timer Monitoring:** Monitor SnapRAID and Restic backup jobs (systemd-exporter or Healthchecks ping)
-  - [ ] **Alertmanager Routing:** Connect notification channels (e.g. Discord, Telegram, or email) for parity or disk issues
+  - [ ] **Alertmanager Routing:** Connect notification channels (Discord, Telegram, or email) for parity or disk issues
 
 ---
 
@@ -200,15 +201,25 @@
 
 ---
 
-## 🏁 Phase 8: Data Migration & Unraid Decommissioning
-*Goal: Migrate multi-terabyte media libraries and workloads, completing the cutover.*
+## 🏁 Phase 8: Storage Array Cutover & Data Migration
+*Goal: Retain multi-terabyte bulk data disks in-place, migrate application states, and establish SnapRAID parity.*
 
-- [ ] Stop Unraid containers (prevents database inconsistencies during final sync)
-- [ ] Sync `appdata` directories from Unraid to new K3s SSD paths (PVCs) via `rsync`
-- [ ] Verify file permissions (UID/GID) on target filesystem
-- [ ] Rsync large media libraries (movies/series) to new `mergerfs` pool
-- [ ] Launch production workloads via ArgoCD (e.g. Jellyfin including Intel QuickSync verification)
-- [ ] Update router port forwardings (80/443) and local DNS records to new Debian host IP
-- [ ] Fallback window (1–2 weeks): Keep legacy Unraid server powered down (preserving parity fallback)
-- [ ] Decommission Unraid server permanently – migration successfully completed!
-- [ ] *Optional:* Deploy homelab dashboard (Homepage)
+- [ ] **Phase 8.1: In-Place Drive Attachment & Initial Read-Only Mount:**
+  - [ ] Physically attach existing Unraid XFS/Btrfs data drives to the bare-metal host
+  - [ ] Mount data disks strictly read-only initially (`ro,norecovery`) via persistent `/dev/disk/by-id/` symlinks
+  - [ ] Configure `mergerfs` pool over read-only data mounts for pooled read access
+  - [ ] Preserve Unraid parity drive completely untouched (ensuring zero-risk rollback window)
+- [ ] **Phase 8.2: Application State Migration & Workload Launch:**
+  - [ ] Stop legacy Unraid containers to ensure consistent database states
+  - [ ] Rsync application states (`appdata`) from Unraid NVMe to new Tier-2 K3s NVMe storage (PVCs)
+  - [ ] Verify file permissions and ownership (UID/GID) on target PVC storage
+  - [ ] Launch production workloads via ArgoCD (e.g. Nextcloud, Jellyfin with Intel QuickSync)
+  - [ ] Validate application performance and data read access against the read-only mergerfs pool
+- [ ] **Phase 8.3: Parity Cutover & Finalization:**
+  - [ ] Remount data disks read-write in `/etc/fstab`
+  - [ ] Format former Unraid parity disk and configure as dedicated SnapRAID parity drive
+  - [ ] Compute initial SnapRAID parity (`snapraid sync`) – concluding the parity rollback window
+  - [ ] Enable automated nightly `snapraid-runner` timer
+  - [ ] Update router port forwardings (80/443) to Caddy VM (`10.55.192.10` per ADR-0003)
+  - [ ] Decommission legacy Unraid boot USB – migration successfully completed!
+  - [ ] *Optional:* Deploy homelab dashboard (Homepage)
