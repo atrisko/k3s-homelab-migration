@@ -33,7 +33,7 @@ New ADRs typically start as `Proposed` or `Accepted`:
 | [0005](0005-loose-mode-rp-filter-for-cni-compatibility.md) | Loose-Mode Reverse Path Filtering (rp_filter) for Kubernetes CNI Compatibility | Accepted |
 | [0006](0006-dual-track-update-and-lifecycle-strategy.md) | Dual-Track Update and Lifecycle Strategy | Accepted |
 | [0007](0007-tls-sans-for-remote-kubernetes-api-access.md) | Declarative TLS Subject Alternative Names (SANs) for Remote Kubernetes API Access | Accepted |
-| [0008](0008-bare-metal-bulk-storage-mergerfs-and-snapraid.md) | Bulk Storage Architecture via mergerfs and SnapRAID on Bare Metal | Accepted |
+| [0008](0008-bare-metal-bulk-storage-mergerfs-and-snapraid.md) | Bulk Storage Architecture via mergerfs and SnapRAID on Bare Metal | Proposed |
 
 
 ## Template

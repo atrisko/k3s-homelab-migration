@@ -31,6 +31,24 @@
       - ansible_facts['mounts'] | selectattr('mount', 'equalto', k3s_storage_path) | list | length > 0
     fail_msg: "{{ k3s_storage_path }} is not mounted! K3s local-path provisioner would write directly to the root disk."
 
+- name: ensure config directory for k3s exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/k3s.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Write config file to safe-guard against k3s writing onto root disk
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/k3s.service.d/02-storage.conf
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Unit]
+      RequiresMountsFor={{ k3s_storage_path }}
+  notify: Restart k3s
 
 - name: Write K3s config.yaml for Dual-Stack and Storage
   ansible.builtin.copy:

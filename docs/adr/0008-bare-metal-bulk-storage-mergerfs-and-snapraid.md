@@ -1,6 +1,6 @@
 # ADR-0008: Bulk Storage Architecture via mergerfs and SnapRAID on Bare Metal
 
-* **Status:** Accepted
+* **Status:** Proposed
 * **Date:** 2026-10-20
 
 ## Context
