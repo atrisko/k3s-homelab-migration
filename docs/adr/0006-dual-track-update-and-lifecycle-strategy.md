@@ -63,6 +63,10 @@ flowchart TD
   * Ephemeral runtime keeps cloud costs negligible (~0.10–0.20 € per upgrade cycle).
   * Optional AWS Budget Alarms provide a safety guardrail against forgotten lingering instances.
 * **Disaster Recovery Side-Benefit:** Successfully deploying the complete application stack on an ephemeral cloud node continuously validates cold-start reproducibility and disaster recovery readiness.
+* **Version Compatibility Gate (Argo CD ↔ Kubernetes):**
+  * Prior to bumping K3s or Argo CD versions, operators must explicitly verify the upstream compatibility matrix. Argo CD officially supports only the three most recent minor releases and specific Kubernetes API targets.
+  * Starting in Phase 4, version updates for core components (`k3s_version`, `argocd_chart_version`) are proposed automatically via Renovate PRs containing the upstream changelog.
+
 
 ## Consequences
 

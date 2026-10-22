@@ -76,9 +76,9 @@
 - [x] **Runtime Storage Guard (Review 2 R2-1):**
   - [x] Add systemd drop-in with `RequiresMountsFor={{ storage_mount_point }}` to `k3s.service`
   - [x] Apply `chattr +i` to the underlying mount directory before mounting (fails write attempts if storage is detached, preventing silent root disk pollution)
-- [ ] **ArgoCD Modernization (Review 2 R2-2):**
-  - [ ] Upgrade ArgoCD `HelmChart` CR to a supported 3.x chart line
-  - [ ] Document version compatibility matrix in ADR-0006
+- [x] **ArgoCD Modernization (Review 2 R2-2):**
+  - [x] Upgrade ArgoCD `HelmChart` CR to a supported 3.x chart line
+  - [x] Document version compatibility matrix in ADR-0006
 - [ ] **Ingress & MetalLB Network Preparation (VLAN 30):**
   - [ ] Disable K3s ServiceLB (`disable: [servicelb]` in `config.yaml`) to prevent conflicts with MetalLB
   - [ ] Define MetalLB L2-AddressPool for VLAN 30 (`10.55.64.200 - 10.55.64.249`) (Traefik .200, Pi-hole .201, Omada .202)
