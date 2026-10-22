@@ -73,9 +73,9 @@
   - [x] Declare `k3s_tls_san` in `defaults/main.yaml` and integrate dynamic `tls-san` block in `config.yaml`
   - [x] ADR-0007: Declarative TLS Subject Alternative Names (SANs) for remote K8s API access
   - [x] Refine access model: API port 6443 restricted to `admin_cidr`; remote access primarily via SSH port forwarding (`ssh -L 6443:localhost:6443`)
-- [ ] **Runtime Storage Guard (Review 2 R2-1):**
-  - [ ] Add systemd drop-in with `RequiresMountsFor={{ storage_mount_point }}` to `k3s.service`
-  - [ ] Apply `chattr +i` to the underlying mount directory before mounting (fails write attempts if storage is detached, preventing silent root disk pollution)
+- [x] **Runtime Storage Guard (Review 2 R2-1):**
+  - [x] Add systemd drop-in with `RequiresMountsFor={{ storage_mount_point }}` to `k3s.service`
+  - [x] Apply `chattr +i` to the underlying mount directory before mounting (fails write attempts if storage is detached, preventing silent root disk pollution)
 - [ ] **ArgoCD Modernization (Review 2 R2-2):**
   - [ ] Upgrade ArgoCD `HelmChart` CR to a supported 3.x chart line
   - [ ] Document version compatibility matrix in ADR-0006

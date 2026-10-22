@@ -19,6 +19,14 @@
     state: directory
     mode: '0755' # Sets standard directory permissions (rwxr-xr-x)
 
+- name: Set chattr +i on {{ storage_mount_point }} to protect root disk
+  ansible.builtin.file:
+    path: "{{ storage_mount_point }}"
+    state: directory
+    attributes: +i
+    mode: '0755'
+  when: ansible_facts['mounts'] | selectattr('mount', 'equalto', storage_mount_point) | list | length == 0
+
 - name: Add volume to /etc/fstab and mount it
   ansible.posix.mount:
     path: "{{ storage_mount_point }}"
