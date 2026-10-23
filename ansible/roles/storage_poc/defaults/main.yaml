@@ -1,4 +1,4 @@
 ---
-storage_mount_point: /mnt/appdata
+storage_mount_point: "{{ appdata_path | default('/mnt/appdata') }}"
 storage_filesystem_type: ext4
 storage_volume_options: "defaults,nofail"

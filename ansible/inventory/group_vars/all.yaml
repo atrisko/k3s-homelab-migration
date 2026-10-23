@@ -1,0 +1,12 @@
+---
+# Cross-cutting infrastructure parameters (Review 2 R2-3)
+# Centralized variables decoupling roles (os_base, storage_poc, k3s_install) from role defaults.
+
+# Dedicated persistent volume storage mount path for container workloads
+appdata_path: /mnt/appdata
+
+# Pinned IPv6 Unique Local Address (ULA) for K3s node according to ADR-0001
+node_ipv6_ula: "fd85:cc6d:b16f:30::10/64"
+
+# Node IPv4 address fallback (hosts can pin this explicitly in inventory / host_vars)
+node_ipv4: "{{ ansible_facts['default_ipv4']['address'] }}"

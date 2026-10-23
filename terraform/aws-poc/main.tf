@@ -103,6 +103,7 @@ resource "local_file" "ansible_inventory" {
             aws-k3s-poc:
               ansible_user: admin
               ansible_ssh_common_args: '-F ../terraform/aws-poc/ssh_config'
+              node_ipv4: "${aws_instance.k3s_server.private_ip}"
               data_disk_device: "/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_${replace(aws_ebs_volume.data_volume.id, "-", "")}"
   EOF
 

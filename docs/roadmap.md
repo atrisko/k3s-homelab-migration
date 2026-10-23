@@ -79,6 +79,11 @@
 - [x] **ArgoCD Modernization (Review 2 R2-2):**
   - [x] Upgrade ArgoCD `HelmChart` CR to a supported 3.x chart line
   - [x] Document version compatibility matrix in ADR-0006
+- [x] **Decouple Role Variables & Explicit Node-IP (Review 2 R2-3):**
+  - [x] Centralize cross-cutting parameters (`node_ipv6_ula`, `node_ipv4`, `appdata_path`) in `inventory/group_vars/all.yaml`
+  - [x] Derive `node-ip` directly using `ansible.utils.ipaddr('address')` filter, replacing regex fact matching
+  - [x] Explicitly pin `node_ipv4` in RemoteLab inventory and Terraform inventory generator to prevent DHCP drift
+  - [x] Replace regex pre-flight check with direct `assert` on assigned IP addresses
 - [ ] **Ingress & MetalLB Network Preparation (VLAN 30):**
   - [ ] Disable K3s ServiceLB (`disable: [servicelb]` in `config.yaml`) to prevent conflicts with MetalLB
   - [ ] Define MetalLB L2-AddressPool for VLAN 30 (`10.55.64.200 - 10.55.64.249`) (Traefik .200, Pi-hole .201, Omada .202)

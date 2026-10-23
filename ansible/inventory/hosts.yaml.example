@@ -5,4 +5,5 @@ all:
         aws-k3s-poc:
           ansible_user: admin
           ansible_ssh_common_args: '-F ../terraform/aws-poc/ssh_config'
+          node_ipv4: "10.0.1.10"
           data_disk_device: "/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_vol00000000000000000"

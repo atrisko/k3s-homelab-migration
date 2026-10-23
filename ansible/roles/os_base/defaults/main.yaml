@@ -24,8 +24,9 @@ os_download_limit: "0"
 # Days to keep old packages for auto-clean
 os_auto_clean_days: "7"
 
-# IPv6 ULA for node
-os_ipv6_ula: "fd85:cc6d:b16f:30::10/64"
+# IPv6 ULA for node (ADR-0001, cross-cutting default from group_vars/all.yaml)
+node_ipv6_ula: "fd85:cc6d:b16f:30::10/64"
+os_ipv6_ula: "{{ node_ipv6_ula }}"
 
 # Configuration of systemd-journald
 os_systemd_max_usage: "1G"

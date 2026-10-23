@@ -4,6 +4,7 @@ all:
       hosts:
         remotelab-k3s:
           ansible_host: 10.100.34.71
+          node_ipv4: 10.100.34.71
           ansible_user: alex
           data_disk_device: /dev/disk/by-id/scsi-360022480eb62ad2262bbe5f495d502e6
 

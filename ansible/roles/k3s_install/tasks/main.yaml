@@ -13,11 +13,17 @@
     group: root
     mode: '0755'
 
-- name: Verify that the node has its ULA from ADR-0001
+- name: Verify that the node has its ULA assigned (ADR-0001)
   ansible.builtin.assert:
     that:
-      - (ansible_facts['all_ipv6_addresses'] | default([])) | select('match', k3s_node_ipv6_prefix) | list | length > 0
-    fail_msg: "Node has no ULA from {{ k3s_node_ipv6_prefix }}. Configure networking (os_base) first."
+      - (node_ipv6_ula | ansible.utils.ipaddr('address')) in (ansible_facts['all_ipv6_addresses'] | default([]))
+    fail_msg: "Node does not have ULA {{ node_ipv6_ula | ansible.utils.ipaddr('address') }} assigned. Configure networking (os_base) first."
+
+- name: Verify that the node has its configured IPv4 assigned
+  ansible.builtin.assert:
+    that:
+      - (node_ipv4 | ansible.utils.ipaddr('address')) in (ansible_facts['all_ipv4_addresses'] | default([]))
+    fail_msg: "Node does not have IPv4 {{ node_ipv4 | ansible.utils.ipaddr('address') }} assigned."
 
 - name: Refresh mount facts after storage_poc role execution
   ansible.builtin.setup:
@@ -62,8 +68,8 @@
       service-cidr: "{{ k3s_service_cidr }}"
       flannel-ipv6-masq: {{ k3s_flannel_ipv6_masq | bool | lower }}
       
-      # Force the node to use both IPs (dynamic IPv4 + static ULA) using modern facts syntax
-      node-ip: "{{ ansible_facts['default_ipv4']['address'] }},{{ ansible_facts['all_ipv6_addresses'] | select('match', k3s_node_ipv6_prefix) | first }}"
+      # Force the node to use both IPs (IPv4 + static ULA) per ADR-0001
+      node-ip: "{{ node_ipv4 | ansible.utils.ipaddr('address') }},{{ node_ipv6_ula | ansible.utils.ipaddr('address') }}"
       
       # Storage: Dedicated path for Persistent Volumes
       default-local-storage-path: "{{ k3s_storage_path }}"

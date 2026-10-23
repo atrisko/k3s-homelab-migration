@@ -42,16 +42,17 @@ flowchart LR
 ### Configuration & Inventory Structure
 
 * **`requirements.yaml`:**
-  * Declares external collection dependencies (`ansible.posix`, `community.general`) installed via `ansible-galaxy collection install -r requirements.yaml`.
+  * Declares external collection dependencies (`ansible.posix`, `community.general`, `ansible.utils`) installed via `ansible-galaxy collection install -r requirements.yaml`.
 * **`ansible.cfg`:**
   * `inventory = ./inventory/hosts.yaml`: Default inventory location.
   * `roles_path = ./roles`: Modular role directory.
   * `host_key_checking = False`: Prevents interactive SSH host-key prompts on freshly provisioned disposable instances.
   * `stdout_callback = debug`: Human-readable console output.
   * `pipelining = True`: Executes Python tasks directly via `stdin` on the target node instead of transferring temporary files per task, reducing round-trip latency.
-* **Inventories:**
-  * **`inventory/hosts.yaml` (AWS Cloud PoC):** Routes SSH traffic via the dynamically generated OpenSSH configuration from Terraform (`ansible_ssh_common_args: '-F ../terraform/aws-poc/ssh_config'`). Defines `data_disk_device` using the persistent udev path `/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_<vol_id>` exported by Terraform.
-  * **`inventory/remotelab.yaml` (RemoteLab Test VM):** Targets the local test node (`10.100.34.71`) as user `alex`, specifying a persistent SCSI WWID path (`/dev/disk/by-id/scsi-...`) for the storage disk.
+* **Inventories & Group Variables:**
+  * **`inventory/group_vars/all.yaml`:** Central repository for cross-cutting parameters (`node_ipv6_ula`, `node_ipv4`, `appdata_path`), decoupling roles and preventing duplicated default values.
+  * **`inventory/hosts.yaml` (AWS Cloud PoC):** Routes SSH traffic via the dynamically generated OpenSSH configuration from Terraform (`ansible_ssh_common_args: '-F ../terraform/aws-poc/ssh_config'`). Defines `data_disk_device` using persistent udev path `/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_<vol_id>` and pins `node_ipv4` to the instance's private IP.
+  * **`inventory/remotelab.yaml` (RemoteLab Test VM):** Targets the local test node (`10.100.34.71`) as user `alex`, pinning `node_ipv4: 10.100.34.71` (avoiding DHCP drift) and specifying persistent SCSI WWID path (`/dev/disk/by-id/scsi-...`) for the storage disk.
 * **Role Variable Architecture:**
   * Every role defines its parameters centrally in `roles/<role_name>/defaults/main.yaml`.
   * Values can be cleanly overridden per environment via inventory `group_vars/` or `host_vars/` without editing task files.
@@ -79,7 +80,7 @@ The `os_base` role establishes baseline hygiene, installs container storage prer
 ### Persistent IPv6 ULA Configuration (ADR-0001)
 * **Dynamic Network Framework Detection:**
   * Automatically detects whether the target host uses classic Debian `ifupdown` (`/etc/network/interfaces.d/`) or modern cloud `netplan` (`/etc/netplan/`).
-  * Writes persistent configuration for `os_ipv6_ula` (default: `"fd85:cc6d:b16f:30::10/64"`):
+  * Writes persistent configuration for `node_ipv6_ula` (default: `"fd85:cc6d:b16f:30::10/64"`):
     * Debian ISO / RemoteLab: `/etc/network/interfaces.d/60-ula.cfg`
     * Cloud AMIs / Netplan: `/etc/netplan/60-ula.yaml`
 * **Non-Destructive Runtime Activation:**
@@ -163,10 +164,10 @@ Target hosts must reference stable udev paths rather than ephemeral kernel names
 The `k3s_install` role configures and bootstraps K3s with native dual-stack networking according to ADR-0001.
 
 ### 1. ADR-0001 ULA Verification
-Before configuring K3s, the role asserts that the host has a valid IPv6 ULA matching `k3s_node_ipv6_prefix` (default: derived dynamically from `os_ipv6_ula` or `"^fd85:cc6d:b16f:30::"`).
+Before configuring K3s, the role asserts that the host has its configured IPv6 ULA (`node_ipv6_ula`) and IPv4 (`node_ipv4`) actively assigned on host interfaces.
 
 ### 2. Root-Disk Overflow Guard
-The role refreshes mount facts and verifies that `k3s_storage_path` (default: `"{{ storage_mount_point | default('/mnt/appdata') }}"`) is actively mounted in `ansible_facts['mounts']`. If unmounted, execution halts immediately to prevent K3s from writing persistent volumes to the host's root partition.
+The role refreshes mount facts and verifies that `k3s_storage_path` (default: `"{{ appdata_path | default('/mnt/appdata') }}"`) is actively mounted in `ansible_facts['mounts']`. If unmounted, execution halts immediately to prevent K3s from writing persistent volumes to the host's root partition.
 
 ### 3. Declarative Configuration (`/etc/rancher/k3s/config.yaml`)
 Node parameters are generated from role defaults before K3s runs:
@@ -177,8 +178,8 @@ cluster-cidr: "{{ k3s_cluster_cidr }}"       # default: "10.42.0.0/16,fd85:cc6d:
 service-cidr: "{{ k3s_service_cidr }}"       # default: "10.43.0.0/16,fd85:cc6d:b16f:4300::/112"
 flannel-ipv6-masq: true
 
-# Force the node to use both IPs (dynamic IPv4 + static ULA)
-node-ip: "{{ ansible_facts['default_ipv4']['address'] }},{{ ansible_facts['all_ipv6_addresses'] | select('match', k3s_node_ipv6_prefix) | first }}"
+# Force the node to use both IPs (IPv4 + static ULA) per ADR-0001
+node-ip: "{{ node_ipv4 | ansible.utils.ipaddr('address') }},{{ node_ipv6_ula | ansible.utils.ipaddr('address') }}"
 
 # Storage: Dedicated path for Persistent Volumes
 default-local-storage-path: "{{ k3s_storage_path }}"

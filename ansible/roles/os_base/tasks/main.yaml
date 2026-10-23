@@ -89,7 +89,7 @@
     content: |
       # Persistent ULA according to ADR-0001
       iface {{ ansible_facts['default_ipv4']['interface'] }} inet6 static
-          address {{ os_ipv6_ula }}
+          address {{ node_ipv6_ula }}
           accept_ra 2
           autoconf 1
   when: ifupdown_dir.stat.exists and ifupdown_dir.stat.isdir
@@ -107,14 +107,14 @@
         ethernets:
           {{ ansible_facts['default_ipv4']['interface'] }}:
             addresses:
-              - "{{ os_ipv6_ula }}"
+              - "{{ node_ipv6_ula }}"
   when: netplan_dir.stat.exists and netplan_dir.stat.isdir
 
 
 - name: Apply ULA immediately (runtime)
   ansible.builtin.command:
-    cmd: "ip -6 addr replace {{ os_ipv6_ula }} dev {{ ansible_facts['default_ipv4']['interface'] }}"
-  when: os_ipv6_ula.split('/')[0] not in (ansible_facts['all_ipv6_addresses'] | default([]))
+    cmd: "ip -6 addr replace {{ node_ipv6_ula }} dev {{ ansible_facts['default_ipv4']['interface'] }}"
+  when: (node_ipv6_ula | ansible.utils.ipaddr('address')) not in (ansible_facts['all_ipv6_addresses'] | default([]))
 
 - name: Refresh network facts after IPv6 change
   ansible.builtin.setup:
