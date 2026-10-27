@@ -19,9 +19,9 @@ flowchart LR
     end
 
     subgraph Pipeline ["Role Execution Pipeline"]
-        R1["1. os_base<br/>(OS Hardening, ULA & Prereqs)"]
-        R2["2. storage_poc<br/>(Disk Mounts & Safety Check)"]
-        R3["3. k3s_install<br/>(K3s Runtime & ArgoCD Bootstrap)"]
+        R1["1. os_base<br/>(OS Hardening, ULA & SLAAC)"]
+        R2["2. storage_poc<br/>(Disk Mounts & Immutable Guard)"]
+        R3["3. k3s_install<br/>(K3s Runtime, Systemd Guard & ArgoCD)"]
     end
 
     subgraph TargetNode ["Target Node (Debian 13)"]
@@ -77,14 +77,16 @@ The `os_base` role establishes baseline hygiene, installs container storage prer
   * Update schedules configured via `os_auto_clean_days` (default: `"7"`).
   * Verified active via systemd timers (`apt-daily.timer`, `apt-daily-upgrade.timer`).
 
-### Persistent IPv6 ULA Configuration (ADR-0001)
-* **Dynamic Network Framework Detection:**
-  * Automatically detects whether the target host uses classic Debian `ifupdown` (`/etc/network/interfaces.d/`) or modern cloud `netplan` (`/etc/netplan/`).
+### Persistent IPv6 ULA & SLAAC Configuration (ADR-0001)
+* **Service-Based Network Framework Detection (Review 2 R2-5):**
+  * Gathers service state via `ansible.builtin.service_facts` and determines the active network stack (`networking.service` for classic `ifupdown` vs. `systemd-networkd.service` for cloud `netplan`).
+  * Enforces mutual exclusivity and fails fast via `assert` if neither service is actively running, preventing dual configuration writes from leftover directory artifacts.
   * Writes persistent configuration for `node_ipv6_ula` (default: `"fd85:cc6d:b16f:30::10/64"`):
-    * Debian ISO / RemoteLab: `/etc/network/interfaces.d/60-ula.cfg`
-    * Cloud AMIs / Netplan: `/etc/netplan/60-ula.yaml`
-* **Non-Destructive Runtime Activation:**
-  * Checks `ansible_facts['all_ipv6_addresses']` and applies the address via `ip -6 addr replace` if not present.
+    * Debian ISO / RemoteLab (`ifupdown`): `/etc/network/interfaces.d/60-ula.cfg` with static ULA, `accept_ra 2` and `autoconf 1`.
+    * Cloud AMIs / Netplan: `/etc/netplan/60-ula.yaml` with static ULA and `accept-ra: true`.
+* **Runtime Activation & SLAAC Persistence (Review 2 R2-4):**
+  * Checks `ansible_facts['all_ipv6_addresses']` and applies the ULA via `ip -6 addr replace` if not present.
+  * Deploys `/etc/sysctl.d/60-accept-ra.conf` enforcing `net.ipv6.conf.<iface>.accept_ra = 2` dynamically at runtime, ensuring the kernel continues accepting Router Advertisements and renewing SLAAC GUAs and default routes even when packet forwarding is enabled.
   * Refreshes Ansible network facts immediately after assignment.
 
 ### OpenSSH Daemon Hardening
@@ -108,8 +110,9 @@ The `os_base` role establishes baseline hygiene, installs container storage prer
   * `net.ipv4.conf.all.rp_filter = 2` and `net.ipv4.conf.default.rp_filter = 2`: **Loose-Mode Reverse Path Filtering (ADR-0005)**. Prevents silent dropping of asymmetric container/Flannel CNI traffic.
   * Disables ICMP redirects (`accept_redirects = 0`, `send_redirects = 0`) and IP source routing (`accept_source_route = 0`).
   * Enables TCP SYN cookies (`net.ipv4.tcp_syncookies = 1`).
-* **Routing Requirements:**
-  * Enforces `net.ipv4.ip_forward = 1` and `net.ipv6.conf.all.forwarding = 1` required for pod overlay and ULA communication.
+* **Routing Requirements & Forwarding Baseline:**
+  * Enforces `net.ipv4.ip_forward = 1` and `net.ipv6.conf.all.forwarding = 1` required for pod overlay and container routing.
+  * Sets `net.ipv6.conf.all.accept_ra = 2` and `net.ipv6.conf.default.accept_ra = 2` as baseline to ensure newly created network interfaces inherit router advertisement reception under forwarding.
 * **Kernel & Memory Protection:**
   * Restricts dmesg access (`kernel.dmesg_restrict = 1`), hides pointer addresses (`kernel.kptr_restrict = 2`), disables SysRq (`kernel.sysrq = 0`), and protects hardlinks/symlinks.
 * **Container Workload Limits:**
@@ -137,7 +140,7 @@ The `os_base` role establishes baseline hygiene, installs container storage prer
 The `storage_poc` role prepares dedicated storage for Kubernetes persistent volumes by creating and mounting a data volume.
 
 ### Role Parameters (`defaults/main.yaml`)
-* `storage_mount_point`: Destination directory on the host (default: `"/mnt/appdata"`).
+* `storage_mount_point`: Destination directory on the host (default: `"{{ appdata_path | default('/mnt/appdata') }}"`).
 * `storage_filesystem_type`: Target filesystem (default: `"ext4"`).
 * `storage_volume_options`: Mount options (default: `"defaults,nofail"`).
 
@@ -148,9 +151,12 @@ The `storage_poc` role prepares dedicated storage for Kubernetes persistent volu
    * Idempotently formats `{{ data_disk_device }}` with `{{ storage_filesystem_type }}` if unformatted.
 3. **Mount Point Provisioning (`file`):**
    * Ensures `{{ storage_mount_point }}` directory exists with permissions `0755`.
-4. **Persistent Mounting (`ansible.posix.mount`):**
+4. **Root-Disk Overflow Directory Guard (`file` / `attributes: +i` - Review 2 R2-1):**
+   * Applies the immutable attribute (`chattr +i`) to `{{ storage_mount_point }}` when unmounted (`ansible_facts['mounts']` check). If the storage volume fails to mount at boot, any write attempts to the directory fail with `Operation not permitted`, preventing silent root filesystem overflow.
+5. **Persistent Mounting (`ansible.posix.mount`):**
    * Mounts the device to `{{ storage_mount_point }}` and registers the entry in `/etc/fstab` with `opts: "{{ storage_volume_options }}"`.
    * The `nofail` flag ensures the host boots successfully into multi-user mode even if the storage volume is temporarily detached.
+   * Once mounted, the underlying immutable attribute is masked by the mounted filesystem and writes proceed normally.
 
 ### Device Addressing in Inventories
 Target hosts must reference stable udev paths rather than ephemeral kernel names (`/dev/sdb` or `/dev/nvme1n1`):
@@ -163,11 +169,14 @@ Target hosts must reference stable udev paths rather than ephemeral kernel names
 
 The `k3s_install` role configures and bootstraps K3s with native dual-stack networking according to ADR-0001.
 
-### 1. ADR-0001 ULA Verification
+### 1. ADR-0001 Network Pre-Flight Verifications
 Before configuring K3s, the role asserts that the host has its configured IPv6 ULA (`node_ipv6_ula`) and IPv4 (`node_ipv4`) actively assigned on host interfaces.
 
-### 2. Root-Disk Overflow Guard
-The role refreshes mount facts and verifies that `k3s_storage_path` (default: `"{{ appdata_path | default('/mnt/appdata') }}"`) is actively mounted in `ansible_facts['mounts']`. If unmounted, execution halts immediately to prevent K3s from writing persistent volumes to the host's root partition.
+### 2. Multi-Layer Storage Guard (Review 2 R2-1)
+* **Playbook-Time Pre-Flight Check (`assert`):**
+  * The role refreshes mount facts and verifies that `k3s_storage_path` (default: `"{{ appdata_path | default('/mnt/appdata') }}"`) is actively mounted in `ansible_facts['mounts']`. If unmounted, execution halts immediately.
+* **Boot-Time Systemd Mount Guard (`k3s.service.d/02-storage.conf`):**
+  * Deploys a systemd drop-in unit configured with `RequiresMountsFor={{ k3s_storage_path }}`. If the storage disk fails to mount after a host reboot, systemd blocks `k3s.service` from starting, preventing the local-path provisioner or K3s state from creating an empty cluster on the host's root disk.
 
 ### 3. Declarative Configuration (`/etc/rancher/k3s/config.yaml`)
 Node parameters are generated from role defaults before K3s runs:
@@ -199,8 +208,8 @@ default-local-storage-path: "{{ k3s_storage_path }}"
 The role bootstraps the K3s engine and ArgoCD, decoupling platform runtime provisioning from application GitOps delivery:
 
 1. **Manifest Directory Provisioning:** Creates `/var/lib/rancher/k3s/server/manifests` (mode `0700`, `root:root`).
-2. **Declarative ArgoCD HelmChart (`argocd.yaml`):** Deploys a K3s `HelmChart` custom resource into the auto-deploy directory:
-   * Chart version is pinned (`argocd_chart_version: "7.7.16"` in `defaults/main.yaml`).
+2. **Declarative ArgoCD HelmChart (`argocd.yaml` - Review 2 R2-2):** Deploys a K3s `HelmChart` custom resource into the auto-deploy directory:
+   * Chart version is pinned (`argocd_chart_version: "10.10.5"` in `defaults/main.yaml`, packaging supported Argo CD v3.5.x).
    * Automatically manages the `argocd` namespace (`targetNamespace: argocd`, `createNamespace: true`).
 3. **Versioned K3s Installation & Upgrades:**
    * Checks currently installed version via `k3s --version`.
@@ -210,6 +219,7 @@ The role bootstraps the K3s engine and ArgoCD, decoupling platform runtime provi
 5. **Decoupled Root Application:**
    * Applies `k8s/bootstrap/root-app.yaml` via `k3s kubectl apply`.
    * **Dual-Reconciler Prevention:** Placed outside K3s's auto-deploy directory so that only ArgoCD reconciles application manifests without competing against K3s's filesystem watcher.
+   * **Scope & Roadmap Alignment:** Currently points to `k8s/test-workload/` for initial smoke-testing; structured App-of-Apps directory layout (`k8s/apps/`) is scheduled for Phase 6.
 
 ---
 
@@ -236,11 +246,14 @@ ansible-playbook -i inventory/remotelab.yaml site.yaml
 After applying the playbook or performing a cold reboot, verify system integrity on the target node:
 
 ```bash
-# 1. Verify storage mount persistence
+# 1. Verify storage mount persistence and systemd storage guard (R2-1)
 findmnt /mnt/appdata
+systemctl cat k3s.service | grep RequiresMountsFor
 
-# 2. Verify kernel hardening parameters
+# 2. Verify kernel hardening parameters & SLAAC router advertisement acceptance (R2-4)
 sysctl kernel.dmesg_restrict kernel.sysrq net.ipv4.conf.all.rp_filter
+sysctl net.ipv6.conf.all.accept_ra net.ipv6.conf.default.accept_ra
+sysctl net.ipv6.conf.$(ip -4 route show default | awk '{print $5}').accept_ra
 
 # 3. Verify active systemd timers & time synchronization
 systemctl is-active systemd-timesyncd apt-daily.timer apt-daily-upgrade.timer
@@ -252,7 +265,7 @@ sudo modprobe -n -v dccp
 # 5. Verify journald disk usage limit
 journalctl --disk-usage
 
-# 6. Verify K3s node and pod status
+# 6. Verify K3s node, Dual-Stack IPs and pod status
 sudo k3s kubectl get nodes -o wide
 sudo k3s kubectl get pods -A
 ```

@@ -88,6 +88,10 @@
   - [x] Set `accept_ra = 2` for `all` and `default` in `99-kubernetes-hardening.conf`
   - [x] Add `accept-ra: true` to Netplan ULA template for cloud/netplan hosts
   - [x] Apply `accept_ra = 2` dynamically at runtime on primary network interface via `/etc/sysctl.d/60-accept-ra.conf`
+- [x] **Network Framework Detection via Active Service (Review 2 R2-5):**
+  - [x] Detect network framework dynamically via active systemd services (`networking.service` vs. `systemd-networkd.service`) using `service_facts`
+  - [x] Eliminate ambiguous directory-existence checks (`stat`) preventing dual configuration writes
+  - [x] Enforce mutual exclusivity via `set_fact` and fail fast (`assert`) if no supported network service is active
 - [ ] **Ingress & MetalLB Network Preparation (VLAN 30):**
   - [ ] Disable K3s ServiceLB (`disable: [servicelb]` in `config.yaml`) to prevent conflicts with MetalLB
   - [ ] Define MetalLB L2-AddressPool for VLAN 30 (`10.55.64.200 - 10.55.64.249`) (Traefik .200, Pi-hole .201, Omada .202)

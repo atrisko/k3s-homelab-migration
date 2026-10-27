@@ -117,7 +117,7 @@ flowchart TD
 ├── terraform/
 │   └── aws-poc/            # AWS PoC IaC definitions (VPC, EC2, EBS, Security Groups)
 ├── ansible/                # Ansible configuration management
-│   ├── requirements.yaml   # External collection dependencies (ansible.posix, community.general)
+│   ├── requirements.yaml   # External collection dependencies (ansible.posix, community.general, ansible.utils)
 │   ├── site.yaml           # Root orchestration playbook
 │   ├── inventory/          # Target inventories (AWS hosts.yaml, RemoteLab remotelab.yaml)
 │   └── roles/              # Modular roles (os_base, storage_poc, k3s_install)

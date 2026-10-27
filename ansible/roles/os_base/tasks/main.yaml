@@ -70,15 +70,25 @@
     - apt-daily.timer
     - apt-daily-upgrade.timer
 
-- name: Check for ifupdown configuration directory
-  ansible.builtin.stat:
-    path: /etc/network/interfaces.d
-  register: ifupdown_dir
+- name: Gather service facts
+  ansible.builtin.service_facts:
 
-- name: Check for netplan configuration directory
-  ansible.builtin.stat:
-    path: /etc/netplan
-  register: netplan_dir
+- name: Determine active network management framework
+  ansible.builtin.set_fact:
+    os_network_framework: >-
+      {{
+        'ifupdown' if ('networking.service' in ansible_facts.services and ansible_facts.services['networking.service']['state'] == 'running')
+        else ('netplan' if ('systemd-networkd.service' in ansible_facts.services and ansible_facts.services['systemd-networkd.service']['state'] == 'running')
+        else 'unknown')
+      }}
+
+- name: Verify that an active and supported network framework was detected
+  ansible.builtin.assert:
+    that:
+      - os_network_framework in ['ifupdown', 'netplan']
+    fail_msg: >
+      No supported active network management framework detected!
+        Neither networking.service (ifupdown) nor systemd-networkd.service (netplan) is currently running.
 
 - name: Ensure persistent IPv6 ULA configuration exists in Debian (ifupdown / RemoteLab)
   ansible.builtin.copy:
@@ -92,7 +102,7 @@
           address {{ node_ipv6_ula }}
           accept_ra 2
           autoconf 1
-  when: ifupdown_dir.stat.exists and ifupdown_dir.stat.isdir
+  when: os_network_framework == 'ifupdown'
 
 - name: Ensure persistent IPv6 ULA configuration exists (netplan / Cloud AMI)
   ansible.builtin.copy:
@@ -109,8 +119,7 @@
             accept-ra: true
             addresses:
               - "{{ node_ipv6_ula }}"
-  when: netplan_dir.stat.exists and netplan_dir.stat.isdir
-
+  when: os_network_framework == 'netplan'
 
 - name: Apply ULA immediately (runtime)
   ansible.builtin.command:
