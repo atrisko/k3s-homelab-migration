@@ -106,6 +106,7 @@
         version: 2
         ethernets:
           {{ ansible_facts['default_ipv4']['interface'] }}:
+            accept-ra: true
             addresses:
               - "{{ node_ipv6_ula }}"
   when: netplan_dir.stat.exists and netplan_dir.stat.isdir
@@ -115,6 +116,15 @@
   ansible.builtin.command:
     cmd: "ip -6 addr replace {{ node_ipv6_ula }} dev {{ ansible_facts['default_ipv4']['interface'] }}"
   when: (node_ipv6_ula | ansible.utils.ipaddr('address')) not in (ansible_facts['all_ipv6_addresses'] | default([]))
+
+- name: Set accept_ra at runtime
+  ansible.posix.sysctl:
+    name: "net.ipv6.conf.{{ ansible_facts['default_ipv4']['interface'] }}.accept_ra"
+    sysctl_file: /etc/sysctl.d/60-accept-ra.conf
+    value: '2'
+    state: present
+    reload: true
+    sysctl_set: true
 
 - name: Refresh network facts after IPv6 change
   ansible.builtin.setup:

@@ -84,6 +84,10 @@
   - [x] Derive `node-ip` directly using `ansible.utils.ipaddr('address')` filter, replacing regex fact matching
   - [x] Explicitly pin `node_ipv4` in RemoteLab inventory and Terraform inventory generator to prevent DHCP drift
   - [x] Replace regex pre-flight check with direct `assert` on assigned IP addresses
+- [x] **Persistent SLAAC under IPv6 Forwarding (Review 2 R2-4):**
+  - [x] Set `accept_ra = 2` for `all` and `default` in `99-kubernetes-hardening.conf`
+  - [x] Add `accept-ra: true` to Netplan ULA template for cloud/netplan hosts
+  - [x] Apply `accept_ra = 2` dynamically at runtime on primary network interface via `/etc/sysctl.d/60-accept-ra.conf`
 - [ ] **Ingress & MetalLB Network Preparation (VLAN 30):**
   - [ ] Disable K3s ServiceLB (`disable: [servicelb]` in `config.yaml`) to prevent conflicts with MetalLB
   - [ ] Define MetalLB L2-AddressPool for VLAN 30 (`10.55.64.200 - 10.55.64.249`) (Traefik .200, Pi-hole .201, Omada .202)
