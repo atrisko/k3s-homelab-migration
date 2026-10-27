@@ -1,9 +1,20 @@
 ---
+- name: Ensure K3s library directory exists
+  ansible.builtin.file:
+    path: /usr/local/lib/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+
 - name: Download K3s installation script
   ansible.builtin.get_url:
-    url: https://get.k3s.io
-    dest: /tmp/k3s-install.sh
+    url: https://raw.githubusercontent.com/k3s-io/k3s/{{ k3s_version }}/install.sh
+    dest: /usr/local/lib/k3s/install.sh
     mode: '0755'
+    checksum: "{{ k3s_install_script_checksum }}"
+
 
 - name: Ensure K3s config directory exists
   ansible.builtin.file:
@@ -120,10 +131,10 @@
 
 - name: Execute K3s installation script
   ansible.builtin.command:
-    cmd: /tmp/k3s-install.sh
+    cmd: /usr/local/lib/k3s/install.sh
   environment:
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
-  when: k3s_check.rc != 0 or k3s_version not in k3s_check.stdout
+  when: k3s_check.rc != 0 or (k3s_check.stdout | regex_search('v\\S+')) != k3s_version
 
 
 - name: Ensure K3s service is running and enabled

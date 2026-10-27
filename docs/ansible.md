@@ -211,9 +211,10 @@ The role bootstraps the K3s engine and ArgoCD, decoupling platform runtime provi
 2. **Declarative ArgoCD HelmChart (`argocd.yaml` - Review 2 R2-2):** Deploys a K3s `HelmChart` custom resource into the auto-deploy directory:
    * Chart version is pinned (`argocd_chart_version: "10.10.5"` in `defaults/main.yaml`, packaging supported Argo CD v3.5.x).
    * Automatically manages the `argocd` namespace (`targetNamespace: argocd`, `createNamespace: true`).
-3. **Versioned K3s Installation & Upgrades:**
-   * Checks currently installed version via `k3s --version`.
-   * Executes `/tmp/k3s-install.sh` with `INSTALL_K3S_VERSION: "{{ k3s_version }}"` (default: `"v1.37.1+k3s1"`) only if uninstalled or version differs.
+3. **Versioned K3s Installation & Upgrades (Review 2 R2-6):**
+   * Pre-creates persistent library directory `/usr/local/lib/k3s` (mode `0755`).
+   * Downloads install script pinned to Git tag (`https://raw.githubusercontent.com/k3s-io/k3s/{{ k3s_version }}/install.sh`) with SHA256 checksum verification (`k3s_install_script_checksum`).
+   * Checks currently installed version via `k3s --version` and executes `/usr/local/lib/k3s/install.sh` only if uninstalled or exact version differs (`(k3s_check.stdout | regex_search('v\\S+')) != k3s_version`).
 4. **CRD Establishment Wait:**
    * Polls `crd/applications.argoproj.io` until established, using configurable timings (`k3s_argocd_wait_retries: 24`, `k3s_argocd_wait_delay: 5`).
 5. **Decoupled Root Application:**

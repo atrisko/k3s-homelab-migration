@@ -59,7 +59,7 @@
 - [x] Pre-flight assertions: validate IPv6 ULA assignment and active `/mnt/appdata` mountpoint
 - [x] K3s dual-stack configuration: generate declarative `/etc/rancher/k3s/config.yaml` before service start (cluster-CIDR, service-CIDR, node-IP per ADR-0001)
 - [x] Redirect K3s local-path provisioner to dedicated SSD storage (`default-local-storage-path: "/mnt/appdata"`)
-- [x] Install K3s via `/tmp/k3s-install.sh`
+- [x] Install K3s via `/usr/local/lib/k3s/install.sh` (pinned script with SHA256 verification)
 - [x] Enable and start K3s systemd service
 - [x] Bootstrap ArgoCD via K3s `HelmChart` CRD (`kube-system/argocd`) with pinned chart version (7.7.16)
 - [x] Create decoupled root application (`k8s/bootstrap/root-app.yaml`) and apply via task
@@ -92,6 +92,11 @@
   - [x] Detect network framework dynamically via active systemd services (`networking.service` vs. `systemd-networkd.service`) using `service_facts`
   - [x] Eliminate ambiguous directory-existence checks (`stat`) preventing dual configuration writes
   - [x] Enforce mutual exclusivity via `set_fact` and fail fast (`assert`) if no supported network service is active
+- [x] **Secure & Persistent K3s Installation (Review 2 R2-6):**
+  - [x] Pin install script download to Git version tag with SHA256 checksum verification (`k3s_install_script_checksum`)
+  - [x] Store install script in persistent directory `/usr/local/lib/k3s/install.sh` ensuring idempotency across reboots
+  - [x] Prevent substring version match false-positives via exact regex comparison (`(k3s_check.stdout | regex_search('v\\S+')) != k3s_version`)
+  - [x] Document immutability constraint of cluster-CIDR and service-CIDR in role defaults
 - [ ] **Ingress & MetalLB Network Preparation (VLAN 30):**
   - [ ] Disable K3s ServiceLB (`disable: [servicelb]` in `config.yaml`) to prevent conflicts with MetalLB
   - [ ] Define MetalLB L2-AddressPool for VLAN 30 (`10.55.64.200 - 10.55.64.249`) (Traefik .200, Pi-hole .201, Omada .202)
