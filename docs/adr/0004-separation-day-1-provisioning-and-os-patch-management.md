@@ -22,31 +22,31 @@ We decouple operating system patch management from the Day-1 Ansible provisionin
 2. **Automated Security Patching via `unattended-upgrades`:**
    * Automated updates are strictly constrained to the Debian security stream (`label=Debian-Security`).
    * Execution is scheduled via native systemd timers (`apt-daily.timer`, `apt-daily-upgrade.timer`).
-3. **Kernel Package Blacklisting:**
-   * Kernel packages (`linux-image*`, `linux-headers*`) are explicitly excluded from automatic updates to prevent unexpected ABI breaks or driver issues.
+3. **Kernel Security Patches Included (Review 2 R2-8):**
+   * Kernel packages (`linux-image*`, `linux-headers*`) from `Debian-Security` are permitted and no longer blacklisted.
+   * *Rationale:* ZFS and out-of-tree DKMS modules were explicitly rejected to prevent excessive SSD wear-and-tear on consumer storage. All required drivers (ext4, nvme, virtio, open-iscsi, nfs) are in-tree and maintained within Debian stable point-releases. Container escape CVEs in the Linux kernel are remediated automatically rather than lingering unpatched.
 4. **Scheduled Maintenance Reboot Window:**
-   * Automatic reboots required by security patches are restricted to an off-peak maintenance window (default: `03:00`).
-5. **Major Distribution & Kernel Upgrades:**
-   * Upgrades outside the Debian Security stream and kernel upgrades remain manual administrative procedures executed deliberately after testing in staging environments (RemoteLab).
+   * Automatic reboots required by security patches (including new kernel installations) are restricted to an off-peak maintenance window (default: `03:00`).
+5. **Major Distribution Upgrades:**
+   * Full distribution upgrades (`dist-upgrade` / major Debian releases) remain manual administrative procedures executed deliberately after testing in staging environments (RemoteLab).
 
 ## Consequences
 
 **Positive:**
 * **Fast & Predictable Ansible Runs:** Playbook execution is deterministic and finishes in seconds; unchanged baselines report `changed=0`.
-* **Autonomous Security Hygiene:** Zero-day vulnerabilities in common userspace libraries (e.g., OpenSSL, glibc, curl) are remediated automatically without administrator intervention.
+* **Timely Remediation of Kernel & Userspace CVEs:** Both critical container-escape kernel vulnerabilities and userspace libraries (OpenSSL, glibc, curl) are patched automatically via Debian-Security.
+* **Driver Integrity Preserved:** In-tree drivers (storage, networking) remain stable across point-release security updates without DKMS build risks.
 * **Workload Stability:** No risk of daytime service interruptions or container restarts caused by ad-hoc package updates during Ansible deployments.
-* **Driver Integrity:** Blacklisting kernel images ensures storage drivers (open-iscsi, nfs) and CNI network drivers do not break unattended.
 
 **Negative & Trade-offs:**
 * **Scheduled Reboot Downtime:** A single-node host reboot at 03:00 causes a brief interruption of running container workloads (acceptable for homelab single-node operations).
-* **Manual Kernel Maintenance:** Administrators must periodically review, test, and apply kernel updates manually.
-* **Environment Drift Potential:** If manual kernel/OS upgrades are not applied consistently across environments, staging and production may diverge over time.
+* **Multi-Node Transition Need:** Hard uncoordinated reboots at 03:00 must be replaced by Kured (Kubernetes Reboot Daemon) once transitioning to a multi-node cluster.
 
 ## Alternatives Considered
 
 * **`upgrade: dist` on Every Ansible Run (Former Implementation):**
   * *Rejected:* Violates separation of concerns. Makes CI/CD runs slow and non-deterministic, and risks unpredictable package changes during daytime deployments.
-* **Fully Automated Upgrades (Including Kernel Packages):**
-  * *Rejected:* Unattended kernel updates carry an unacceptable risk of boot failures or broken out-of-tree/network drivers without rollback mechanisms ready.
+* **Blacklisting Kernel Packages (Former Implementation, Review 2 R2-8):**
+  * *Superseded:* Blacklisting the kernel while accepting 03:00 reboots left the system vulnerable to container escape CVEs while still incurring reboot downtime. Without ZFS/DKMS, there is no technical driver integrity risk.
 * **Kured (Kubernetes Reboot Daemon):**
   * *Deferred:* In multi-node clusters, hard uncoordinated 03:00 node reboots are an anti-pattern. Kured coordinates reboots by performing `kubectl cordon` and `kubectl drain` before rebooting nodes sequentially. This will be evaluated when transitioning from single-node to multi-node production.

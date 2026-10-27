@@ -101,6 +101,10 @@
   - [x] Remove global `host_key_checking = False` from `ansible.cfg`
   - [x] Rely on standard `known_hosts` validation for persistent Bare Metal and RemoteLab nodes
   - [x] Scope `StrictHostKeyChecking no` exclusively to ephemeral AWS PoC via Terraform-generated `ssh_config`
+- [x] **Kernel Security Updates via Unattended-Upgrades (Review 2 R2-8):**
+  - [x] Remove `linux-image*` and `linux-headers*` from `Package-Blacklist` in `os_base/tasks/main.yaml`
+  - [x] Align patch strategy with decision against ZFS/DKMS (ruling out consumer SSD wear-and-tear)
+  - [x] Permit automated Debian-Security kernel patching coordinated with scheduled 03:00 reboot window (ADR-0004)
 - [ ] **Ingress & MetalLB Network Preparation (VLAN 30):**
   - [ ] Disable K3s ServiceLB (`disable: [servicelb]` in `config.yaml`) to prevent conflicts with MetalLB
   - [ ] Define MetalLB L2-AddressPool for VLAN 30 (`10.55.64.200 - 10.55.64.249`) (Traefik .200, Pi-hole .201, Omada .202)

@@ -26,8 +26,6 @@
 
       // Packages to never update automatically
       Unattended-Upgrade::Package-Blacklist {
-          "linux-image*";
-          "linux-headers*";
       };
 
       // Send email notifications about updates

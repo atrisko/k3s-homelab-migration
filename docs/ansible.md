@@ -70,9 +70,9 @@ The `os_base` role establishes baseline hygiene, installs container storage prer
 
 ### Package Management & Maintenance Updates
 * **Base Packages (`os_base_packages`):** Default list installs `curl`, `git`, `htop`, `jq`, `open-iscsi`, `unattended-upgrades`, `apt-listchanges`, `systemd-timesyncd`, and `nfs-common` (required for K8s CSI persistent storage mounts).
-* **Automated Security Updates (`unattended-upgrades`):**
+* **Automated Security Updates (`unattended-upgrades` - ADR-0004):**
   * Configured via `/etc/apt/apt.conf.d/50unattended-upgrades` to restrict automatic updates to security patches (`label=Debian-Security`).
-  * Kernel images and headers (`linux-image*`, `linux-headers*`) are blacklisted from automated package upgrades (kernel updates are coordinated via planned maintenance).
+  * Kernel security updates (`linux-image*`, `linux-headers*`) are permitted (Review 2 R2-8) as no out-of-tree DKMS modules (e.g., ZFS) are used; required in-tree drivers remain intact and container escape CVEs are patched without delay.
   * Configured with automatic reboot window scheduled via `os_reboot_time` (default: `"03:00"`).
   * Update schedules configured via `os_auto_clean_days` (default: `"7"`).
   * Verified active via systemd timers (`apt-daily.timer`, `apt-daily-upgrade.timer`).
