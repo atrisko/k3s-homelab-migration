@@ -108,6 +108,11 @@
 - [x] **Root Application Finalizer Guard (Review 2 R2-9):**
   - [x] Remove cascading `resources-finalizer` from `k8s/bootstrap/root-app.yaml` to prevent cluster-wide resource and PVC wipeouts
   - [x] Clarify boundary between smoke-test workload (`k8s/test-workload/`) and upcoming Phase 6 App-of-Apps (`k8s/apps/`)
+- [x] **Terraform Perimeter & Hardening (Review 2 R2-11):**
+  - [x] Restrict ingress HTTP (80) & HTTPS (443) exclusively to `admin_cidr` (closing unused public exposure)
+  - [x] Validate dynamic operator public IP resolution via `postcondition` on `data.http.my_public_ip` (status 200)
+  - [x] Use `abspath(path.module)` for generated `ssh_config` path in Ansible inventory template
+  - [x] Explicitly declare `hashicorp/local` provider constraint in `required_providers`
 - [ ] **Ingress & MetalLB Network Preparation (VLAN 30):**
   - [ ] Disable K3s ServiceLB (`disable: [servicelb]` in `config.yaml`) to prevent conflicts with MetalLB
   - [ ] Define MetalLB L2-AddressPool for VLAN 30 (`10.55.64.200 - 10.55.64.249`) (Traefik .200, Pi-hole .201, Omada .202)

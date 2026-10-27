@@ -24,7 +24,7 @@ variable "admin_cidr" {
 }
 
 variable "instance_type" {
-  description = "The EC2 instance type to use for the K3s server. e.g. t3.medium, t3.medium"
+  description = "The EC2 instance type to use for the K3s server. e.g. t3.small, t3.medium"
   type        = string
   default     = "t3.small"
 }

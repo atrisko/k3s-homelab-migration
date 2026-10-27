@@ -6,7 +6,7 @@ This document covers the technical architecture, security baselines, and resourc
 
 ## 1. Provider & Project Conventions (`providers.tf`, `variables.tf`)
 
-* **Terraform Version Guard:** Enforces `required_version = ">= 1.5.0"` and AWS Provider `~> 5.0`.
+* **Terraform Version Guard:** Enforces `required_version = ">= 1.5.0"`, AWS Provider `~> 5.0`, HTTP Provider `~> 3.4`, and Local Provider `~> 2.5` (Review 2 R2-11).
 * **Global Tagging (`default_tags`):** All provisioned AWS resources automatically receive tags:
   * `Project = "k3s-homelab-poc"`
   * `ManagedBy = "terraform"`
@@ -14,7 +14,7 @@ This document covers the technical architecture, security baselines, and resourc
   * `aws_region`: Deployment region (default: `"eu-central-1"`).
   * `aws_profile`: AWS CLI credentials profile (default: `"homelab"`).
   * `instance_type`: Virtual machine size (default: `"t3.small"`, low-cost instance providing 2 GB RAM for K3s + ArgoCD at ~0.10–0.20 € per 2–4 h test cycle).
-  * `admin_cidr`: Whitelisted CIDR for administrative access. If null, dynamically discovered via `https://checkip.amazonaws.com`.
+  * `admin_cidr`: Whitelisted CIDR for administrative access. If null, dynamically discovered via `https://checkip.amazonaws.com` (validated with lifecycle `postcondition` ensuring HTTP 200).
   * `ssh_public_key_path`: Path to the dedicated Ed25519 key pair (default: `"~/.ssh/id_ed25519_aws_homelab.pub"`).
 
 ---
@@ -32,11 +32,10 @@ Rather than deploying into the AWS Default VPC, the environment creates an isola
 
 ### Security Group Ingress / Egress Rules (`aws_security_group.k3s_sg`)
 
-* **Ingress (Restricted Administration):**
+* **Ingress (Perimeter Defense - Review 2 R2-11):**
   * Port `22` (SSH): Restricted exclusively to operator IP (`local.admin_cidr`).
   * Port `6443` (Kubernetes API): Restricted exclusively to operator IP (`local.admin_cidr`).
-* **Ingress (Public Web Traffic):**
-  * Ports `80` (HTTP) & `443` (HTTPS): Open to `0.0.0.0/0` targeting the Traefik ingress controller.
+  * Ports `80` (HTTP) & `443` (HTTPS): Restricted exclusively to operator IP (`local.admin_cidr`). Public access is closed since no internet-facing workloads are published in the PoC.
 * **Egress:**
   * Protocol `-1` (all traffic allowed outbound) for OS package updates (`apt`), container image pulling, and Helm charts.
 

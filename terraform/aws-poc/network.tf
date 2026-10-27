@@ -34,6 +34,13 @@ resource "aws_route_table_association" "public_assoc" {
 # 5. Dynamic Operator IP Discovery
 data "http" "my_public_ip" {
   url = "https://checkip.amazonaws.com"
+
+  lifecycle {
+    postcondition {
+      condition     = self.status_code == 200
+      error_message = "Failed to query operator public IP from checkip.amazonaws.com (HTTP status: ${self.status_code})"
+    }
+  }
 }
 
 locals {
@@ -56,19 +63,19 @@ resource "aws_security_group" "k3s_sg" {
   }
 
   ingress {
-    description = "HTTP for Traefik ingress"
+    description = "HTTP for Traefik ingress from operator IP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [local.admin_cidr]
   }
 
   ingress {
-    description = "HTTPS for Traefik ingress"
+    description = "HTTPS for Traefik ingress from operator IP"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [local.admin_cidr]
   }
 
   ingress {
