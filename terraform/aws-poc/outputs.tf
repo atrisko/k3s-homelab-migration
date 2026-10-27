@@ -4,7 +4,7 @@ output "instance_public_ip" {
 }
 
 output "admin_cidr" {
-  description = "Whitelisted IP CIDR for administrative access (SSH, K8s API)"
+  description = "Whitelisted IP CIDR for administrative and web access (SSH, K8s API, HTTP, HTTPS)"
   value       = local.admin_cidr
 }
 

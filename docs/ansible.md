@@ -51,7 +51,8 @@ flowchart LR
   * *Host Key Verification (Review 2 R2-7):* Global `host_key_checking = False` is deliberately omitted. Persistent nodes (RemoteLab & Bare Metal) rely on standard SSH host-key validation via `~/.ssh/known_hosts`, preventing LAN MitM attacks. Ephemeral disposable nodes (AWS Cloud PoC) configure `StrictHostKeyChecking no` scoped exclusively via their dedicated `ssh_config`.
 * **Inventories & Group Variables:**
   * **`inventory/group_vars/all.yaml`:** Central repository for cross-cutting parameters (`node_ipv6_ula`, `node_ipv4`, `appdata_path`), decoupling roles and preventing duplicated default values.
-  * **`inventory/hosts.yaml` (AWS Cloud PoC):** Routes SSH traffic via the dynamically generated OpenSSH configuration from Terraform (`ansible_ssh_common_args: '-F ../terraform/aws-poc/ssh_config'`). Defines `data_disk_device` using persistent udev path `/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_<vol_id>` and pins `node_ipv4` to the instance's private IP.
+  * **`inventory/hosts.yaml` (AWS Cloud PoC, gitignored):** Dynamically generated during `terraform apply` (templated from `inventory/hosts.yaml.example`). Routes SSH traffic via the absolute path of the generated OpenSSH configuration (`ansible_ssh_common_args: '-F <abspath>/ssh_config'`). Defines `data_disk_device` using persistent udev path `/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_<vol_id>` and pins `node_ipv4` to the instance's private IP.
+  * **`inventory/hosts.yaml.example`:** Committed template demonstrating structure and variables for AWS cloud deployments.
   * **`inventory/remotelab.yaml` (RemoteLab Test VM):** Targets the local test node (`10.100.34.71`) as user `alex`, pinning `node_ipv4: 10.100.34.71` (avoiding DHCP drift) and specifying persistent SCSI WWID path (`/dev/disk/by-id/scsi-...`) for the storage disk.
 * **Role Variable Architecture:**
   * Every role defines its parameters centrally in `roles/<role_name>/defaults/main.yaml`.
@@ -74,7 +75,7 @@ The `os_base` role establishes baseline hygiene, installs container storage prer
   * Configured via `/etc/apt/apt.conf.d/50unattended-upgrades` to restrict automatic updates to security patches (`label=Debian-Security`).
   * Kernel security updates (`linux-image*`, `linux-headers*`) are permitted (Review 2 R2-8) as no out-of-tree DKMS modules (e.g., ZFS) are used; required in-tree drivers remain intact and container escape CVEs are patched without delay.
   * Configured with automatic reboot window scheduled via `os_reboot_time` (default: `"03:00"`).
-  * Update schedules configured via `os_auto_clean_days` (default: `"7"`).
+  * Update schedules configured via `os_auto_clean_days` (default: `"7"`). Download bandwidth throttled via `os_download_limit` (default: `"0"`, unlimited).
   * Verified active via systemd timers (`apt-daily.timer`, `apt-daily-upgrade.timer`).
 
 ### Persistent IPv6 ULA & SLAAC Configuration (ADR-0001)
@@ -114,7 +115,7 @@ The `os_base` role establishes baseline hygiene, installs container storage prer
   * Enforces `net.ipv4.ip_forward = 1` and `net.ipv6.conf.all.forwarding = 1` required for pod overlay and container routing.
   * Sets `net.ipv6.conf.all.accept_ra = 2` and `net.ipv6.conf.default.accept_ra = 2` as baseline to ensure newly created network interfaces inherit router advertisement reception under forwarding.
 * **Kernel & Memory Protection:**
-  * Restricts dmesg access (`kernel.dmesg_restrict = 1`), hides pointer addresses (`kernel.kptr_restrict = 2`), disables SysRq (`kernel.sysrq = 0`), and protects hardlinks/symlinks.
+  * Restricts dmesg access (`kernel.dmesg_restrict = 1`), hides pointer addresses (`kernel.kptr_restrict = 2`), disables SysRq (`kernel.sysrq = 0`), enforces core dump safety (`fs.suid_dumpable = 0`), and protects hardlinks/symlinks (`fs.protected_hardlinks = 1`, `fs.protected_symlinks = 1`).
 * **Container Workload Limits:**
   * Increases inotify limits (`fs.inotify.max_user_watches = 524288`, `fs.inotify.max_user_instances = 8192`) to prevent container crashes in file-monitoring tools.
 
@@ -183,9 +184,10 @@ Node parameters are generated from role defaults before K3s runs:
 
 ```yaml
 # Dual-Stack according to ADR-0001
+# NOTE: cluster-cidr and service-cidr are immutable after cluster bootstrap!
 cluster-cidr: "{{ k3s_cluster_cidr }}"       # default: "10.42.0.0/16,fd85:cc6d:b16f:4200::/56"
 service-cidr: "{{ k3s_service_cidr }}"       # default: "10.43.0.0/16,fd85:cc6d:b16f:4300::/112"
-flannel-ipv6-masq: true
+flannel-ipv6-masq: {{ k3s_flannel_ipv6_masq | bool | lower }} # default: true
 
 # Force the node to use both IPs (IPv4 + static ULA) per ADR-0001
 node-ip: "{{ node_ipv4 | ansible.utils.ipaddr('address') }},{{ node_ipv6_ula | ansible.utils.ipaddr('address') }}"
@@ -215,6 +217,7 @@ The role bootstraps the K3s engine and ArgoCD, decoupling platform runtime provi
    * Pre-creates persistent library directory `/usr/local/lib/k3s` (mode `0755`).
    * Downloads install script pinned to Git tag (`https://raw.githubusercontent.com/k3s-io/k3s/{{ k3s_version }}/install.sh`) with SHA256 checksum verification (`k3s_install_script_checksum`).
    * Checks currently installed version via `k3s --version` and executes `/usr/local/lib/k3s/install.sh` only if uninstalled or exact version differs (`(k3s_check.stdout | regex_search('v\\S+')) != k3s_version`).
+   * Ensures systemd service `k3s` is running and enabled (`state: started`, `enabled: true`).
 4. **CRD Establishment Wait:**
    * Polls `crd/applications.argoproj.io` until established, using configurable timings (`k3s_argocd_wait_retries: 24`, `k3s_argocd_wait_delay: 5`).
 5. **Decoupled Root Application (Review 2 R2-9):**

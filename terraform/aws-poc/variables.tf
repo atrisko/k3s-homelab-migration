@@ -18,7 +18,7 @@ variable "ssh_public_key_path" {
 
 
 variable "admin_cidr" {
-  description = "Whitelisted CIDR block for administrative access (SSH, K8s API). If null, dynamically queries checkip.amazonaws.com."
+  description = "Whitelisted CIDR block for administrative and web access (SSH, K8s API, HTTP, HTTPS). If null, dynamically queries checkip.amazonaws.com."
   type        = string
   default     = null
 }

@@ -119,7 +119,10 @@ flowchart TD
 ├── ansible/                # Ansible configuration management
 │   ├── requirements.yaml   # External collection dependencies (ansible.posix, community.general, ansible.utils)
 │   ├── site.yaml           # Root orchestration playbook
-│   ├── inventory/          # Target inventories (AWS hosts.yaml, RemoteLab remotelab.yaml)
+│   ├── inventory/          # Target inventories (hosts.yaml.example, RemoteLab remotelab.yaml, group_vars/)
+│   │   ├── group_vars/     # Cross-cutting shared variables (all.yaml)
+│   │   ├── hosts.yaml.example # Template for dynamically generated AWS inventory (hosts.yaml is gitignored)
+│   │   └── remotelab.yaml  # Local Hyper-V staging inventory
 │   └── roles/              # Modular roles (os_base, storage_poc, k3s_install)
 └── k8s/                    # Kubernetes GitOps manifests
     ├── bootstrap/          # ArgoCD root application (root-app.yaml)
@@ -131,7 +134,7 @@ flowchart TD
 ## Detailed Documentation
 
 * [Project Roadmap & Implementation Checklist](docs/roadmap.md)
-* [Architecture & Code Reviews](docs/reviews/review-1.md)
+* [Architecture & Code Reviews](docs/reviews/) ([Review 1](docs/reviews/review-1.md) · [Review 2](docs/reviews/review-2.md))
 * [Architecture Decision Records (ADRs)](docs/adr/README.md)
 * [Terraform AWS Provisioning & Lifecycle Guide](docs/terraform.md)
 * [Ansible Configuration & K3s Provisioning Guide](docs/ansible.md)
@@ -187,7 +190,8 @@ terraform destroy
 To target the local Hyper-V staging environment, execute the same playbook against the RemoteLab inventory.
 
 > [!NOTE]
-> The initial run against a freshly installed Debian target requires `-K` (`--ask-become-pass`) to configure passwordless sudo (`/etc/sudoers.d/10-ansible`). Subsequent runs execute unattended without additional flags.
+> Ensure the target host key is present in `~/.ssh/known_hosts` (e.g. via an initial interactive `ssh alex@10.100.34.71`), as strict host key verification is enforced per Review 2 (R2-7).
+> The initial run against a freshly installed Debian target also requires `-K` (`--ask-become-pass`) to configure passwordless sudo (`/etc/sudoers.d/10-ansible`). Subsequent runs execute unattended without additional flags.
 
 ```bash
 cd ../../ansible

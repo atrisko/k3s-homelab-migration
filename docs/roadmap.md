@@ -48,7 +48,7 @@
   - [x] Mount option `nofail` configured (prevents boot hangs on detached disks)
   - [x] Storage safety assertion: pre-flight assertion verifying that target storage device variable is defined
 - [x] **Ansible Role Modularization & Defaults:**
-  - [x] Create `requirements.yaml` for external collections (`ansible.posix`, `community.general`)
+  - [x] Create `requirements.yaml` for external collections (`ansible.posix`, `community.general`, `ansible.utils`)
   - [x] Define role variables in `defaults/main.yaml` overridable via inventory `group_vars/`
 
 ---
@@ -61,7 +61,7 @@
 - [x] Redirect K3s local-path provisioner to dedicated SSD storage (`default-local-storage-path: "/mnt/appdata"`)
 - [x] Install K3s via `/usr/local/lib/k3s/install.sh` (pinned script with SHA256 verification)
 - [x] Enable and start K3s systemd service
-- [x] Bootstrap ArgoCD via K3s `HelmChart` CRD (`kube-system/argocd`) with pinned chart version (7.7.16)
+- [x] Bootstrap ArgoCD via K3s `HelmChart` CRD (`kube-system/argocd`) with pinned chart version (`10.10.5`, packaging Argo CD v3.5.x per Review 2 R2-2)
 - [x] Create decoupled root application (`k8s/bootstrap/root-app.yaml`) and apply via task
 - [x] Connect ArgoCD to GitHub repository and assign sync permissions (`root-app` syncs from public repository)
 - [x] Deploy smoke-test workload (Caddy in `k8s/test-workload/caddy.yaml`) declaratively via GitOps
@@ -74,7 +74,7 @@
   - [x] ADR-0007: Declarative TLS Subject Alternative Names (SANs) for remote K8s API access
   - [x] Refine access model: API port 6443 restricted to `admin_cidr`; remote access primarily via SSH port forwarding (`ssh -L 6443:localhost:6443`)
 - [x] **Runtime Storage Guard (Review 2 R2-1):**
-  - [x] Add systemd drop-in with `RequiresMountsFor={{ storage_mount_point }}` to `k3s.service`
+  - [x] Add systemd drop-in with `RequiresMountsFor={{ k3s_storage_path }}` to `k3s.service`
   - [x] Apply `chattr +i` to the underlying mount directory before mounting (fails write attempts if storage is detached, preventing silent root disk pollution)
 - [x] **ArgoCD Modernization (Review 2 R2-2):**
   - [x] Upgrade ArgoCD `HelmChart` CR to a supported 3.x chart line

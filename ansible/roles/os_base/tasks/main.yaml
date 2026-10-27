@@ -225,7 +225,7 @@
   ansible.builtin.copy:
     dest: /etc/sudoers.d/10-ansible
     content: |
-      # Allow passwordless sudo for non-interactive Ansible automation and CI/CD pipelines
+      # Allow passwordless sudo for non-interactive Ansible automation
       {{ ansible_user }} ALL=(ALL) NOPASSWD: ALL
     owner: root
     group: root

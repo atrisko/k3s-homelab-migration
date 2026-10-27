@@ -61,7 +61,7 @@ resource "aws_instance" "k3s_server" {
   }
 }
 
-# Additional 10 GB disk (Simulates the future mergerfs/SnapRAID storage pool)
+# Additional 10 GB disk (Tier-2 appdata storage volume, ext4 on EBS, simulating the future NVMe appdata pool)
 resource "aws_ebs_volume" "data_volume" {
   availability_zone = aws_instance.k3s_server.availability_zone
   size              = 10
