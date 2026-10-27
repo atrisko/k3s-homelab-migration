@@ -217,9 +217,10 @@ The role bootstraps the K3s engine and ArgoCD, decoupling platform runtime provi
    * Checks currently installed version via `k3s --version` and executes `/usr/local/lib/k3s/install.sh` only if uninstalled or exact version differs (`(k3s_check.stdout | regex_search('v\\S+')) != k3s_version`).
 4. **CRD Establishment Wait:**
    * Polls `crd/applications.argoproj.io` until established, using configurable timings (`k3s_argocd_wait_retries: 24`, `k3s_argocd_wait_delay: 5`).
-5. **Decoupled Root Application:**
+5. **Decoupled Root Application (Review 2 R2-9):**
    * Applies `k8s/bootstrap/root-app.yaml` via `k3s kubectl apply`.
    * **Dual-Reconciler Prevention:** Placed outside K3s's auto-deploy directory so that only ArgoCD reconciles application manifests without competing against K3s's filesystem watcher.
+   * **Cascading Deletion Prevention:** Cascading `resources-finalizer` is deliberately omitted from the root application to protect downstream applications and stateful persistent storage (PVCs) from accidental recursive deletion.
    * **Scope & Roadmap Alignment:** Currently points to `k8s/test-workload/` for initial smoke-testing; structured App-of-Apps directory layout (`k8s/apps/`) is scheduled for Phase 6.
 
 ---

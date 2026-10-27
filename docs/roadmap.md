@@ -105,6 +105,9 @@
   - [x] Remove `linux-image*` and `linux-headers*` from `Package-Blacklist` in `os_base/tasks/main.yaml`
   - [x] Align patch strategy with decision against ZFS/DKMS (ruling out consumer SSD wear-and-tear)
   - [x] Permit automated Debian-Security kernel patching coordinated with scheduled 03:00 reboot window (ADR-0004)
+- [x] **Root Application Finalizer Guard (Review 2 R2-9):**
+  - [x] Remove cascading `resources-finalizer` from `k8s/bootstrap/root-app.yaml` to prevent cluster-wide resource and PVC wipeouts
+  - [x] Clarify boundary between smoke-test workload (`k8s/test-workload/`) and upcoming Phase 6 App-of-Apps (`k8s/apps/`)
 - [ ] **Ingress & MetalLB Network Preparation (VLAN 30):**
   - [ ] Disable K3s ServiceLB (`disable: [servicelb]` in `config.yaml`) to prevent conflicts with MetalLB
   - [ ] Define MetalLB L2-AddressPool for VLAN 30 (`10.55.64.200 - 10.55.64.249`) (Traefik .200, Pi-hole .201, Omada .202)
