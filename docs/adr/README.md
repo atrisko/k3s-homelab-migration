@@ -34,6 +34,7 @@ New ADRs typically start as `Proposed` or `Accepted`:
 | [0006](0006-dual-track-update-and-lifecycle-strategy.md) | Dual-Track Update and Lifecycle Strategy | Accepted |
 | [0007](0007-tls-sans-for-remote-kubernetes-api-access.md) | Declarative TLS Subject Alternative Names (SANs) for Remote Kubernetes API Access | Accepted |
 | [0008](0008-bare-metal-bulk-storage-mergerfs-and-snapraid.md) | Bulk Storage Architecture via mergerfs and SnapRAID on Bare Metal | Proposed |
+| [0009](0009-tier-2-appdata-storage-ext4-lvm-mdraid.md) | Tier-2 Appdata Storage via ext4 on LVM on mdraid RAID1 | Proposed |
 
 
 ## Template

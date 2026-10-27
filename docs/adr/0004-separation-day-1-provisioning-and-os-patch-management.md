@@ -24,7 +24,7 @@ We decouple operating system patch management from the Day-1 Ansible provisionin
    * Execution is scheduled via native systemd timers (`apt-daily.timer`, `apt-daily-upgrade.timer`).
 3. **Kernel Security Patches Included (Review 2 R2-8):**
    * Kernel packages (`linux-image*`, `linux-headers*`) from `Debian-Security` are permitted and no longer blacklisted.
-   * *Rationale:* ZFS and out-of-tree DKMS modules were explicitly rejected to prevent excessive SSD wear-and-tear on consumer storage. All required drivers (ext4, nvme, virtio, open-iscsi, nfs) are in-tree and maintained within Debian stable point-releases. Container escape CVEs in the Linux kernel are remediated automatically rather than lingering unpatched.
+   * *Rationale:* ZFS and out-of-tree DKMS modules were explicitly rejected to prevent excessive SSD wear-and-tear on consumer storage (Tier-2 storage decision: ADR-0009). All required drivers (ext4, nvme, virtio, open-iscsi, nfs) are in-tree and maintained within Debian stable point-releases. Container escape CVEs in the Linux kernel are remediated automatically rather than lingering unpatched.
 4. **Scheduled Maintenance Reboot Window:**
    * Automatic reboots required by security patches (including new kernel installations) are restricted to an off-peak maintenance window (default: `03:00`).
 5. **Major Distribution Upgrades:**

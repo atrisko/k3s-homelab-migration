@@ -170,10 +170,13 @@
 - [ ] Prepare physical hardware & install base Debian 13 on system SSD
 - [ ] **Decoupled 2-Tier Storage Setup for Base System:**
   - [ ] **Tier 1 (OS):** Dedicated SATA SSD for Debian 13 base system (disposable, protects from I/O wear)
-  - [ ] **Tier 2 (Appdata & K3s Runtime):** 1 TB M.2 NVMe formatted as single-disk pool (ZFS or Btrfs)
-    - [ ] Online mirror preparation: format filesystem allowing non-disruptive online mirror attach (`zpool attach` or `btrfs balance`) once second M.2 is installed
-    - [ ] K3s I/O decoupling: configure `data-dir: /mnt/appdata/k3s` (containerd, pod overlays, SQLite WAL) and `default-local-storage-path: /mnt/appdata/storage`
-    - [ ] Cache & Ingest partitioning: dedicated volume/dataset with quota for staging ingest prior to array offloading
+  - [ ] **Tier 2 (Appdata & K3s Runtime, ADR-0009):** 1 TB M.2 NVMe as degraded mdraid RAID1 (`missing` member) → LVM (`vg_appdata`) → ext4
+    - [ ] Online mirror preparation: attach second M.2 later via `mdadm --add` (no reformat, no downtime); member partitions sized slightly below disk capacity
+    - [ ] K3s I/O decoupling: dedicated LVs for `data-dir: /mnt/appdata/k3s` (containerd, pod overlays, SQLite WAL) and `default-local-storage-path: /mnt/appdata/storage`
+    - [ ] Cache & Ingest: dedicated LV `/mnt/appdata/ingest` (LV size acts as quota) for staging ingest prior to array offloading
+    - [ ] Keep ~30–40 % of the VG unallocated; grow LVs online via `lvextend -r`
+    - [ ] Array monitoring (`mdadm --monitor` / node-exporter `mdadm` collector) and `fstrim.timer`
+    - [ ] Extend K3s storage guard (`RequiresMountsFor`) to all Tier-2 mount points
 - [ ] **Network & DMZ Isolation (VLAN 30 & VLAN 70):**
   - [ ] Configure 802.1q VLAN trunking on physical network interface via Ansible
   - [ ] Assign host interface to VLAN 30 (`10.55.64.10` / `fd85:cc6d:b16f:30::10`)
