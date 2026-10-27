@@ -46,9 +46,9 @@ flowchart LR
 * **`ansible.cfg`:**
   * `inventory = ./inventory/hosts.yaml`: Default inventory location.
   * `roles_path = ./roles`: Modular role directory.
-  * `host_key_checking = False`: Prevents interactive SSH host-key prompts on freshly provisioned disposable instances.
   * `stdout_callback = debug`: Human-readable console output.
   * `pipelining = True`: Executes Python tasks directly via `stdin` on the target node instead of transferring temporary files per task, reducing round-trip latency.
+  * *Host Key Verification (Review 2 R2-7):* Global `host_key_checking = False` is deliberately omitted. Persistent nodes (RemoteLab & Bare Metal) rely on standard SSH host-key validation via `~/.ssh/known_hosts`, preventing LAN MitM attacks. Ephemeral disposable nodes (AWS Cloud PoC) configure `StrictHostKeyChecking no` scoped exclusively via their dedicated `ssh_config`.
 * **Inventories & Group Variables:**
   * **`inventory/group_vars/all.yaml`:** Central repository for cross-cutting parameters (`node_ipv6_ula`, `node_ipv4`, `appdata_path`), decoupling roles and preventing duplicated default values.
   * **`inventory/hosts.yaml` (AWS Cloud PoC):** Routes SSH traffic via the dynamically generated OpenSSH configuration from Terraform (`ansible_ssh_common_args: '-F ../terraform/aws-poc/ssh_config'`). Defines `data_disk_device` using persistent udev path `/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_<vol_id>` and pins `node_ipv4` to the instance's private IP.

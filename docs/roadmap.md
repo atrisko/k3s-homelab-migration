@@ -97,6 +97,10 @@
   - [x] Store install script in persistent directory `/usr/local/lib/k3s/install.sh` ensuring idempotency across reboots
   - [x] Prevent substring version match false-positives via exact regex comparison (`(k3s_check.stdout | regex_search('v\\S+')) != k3s_version`)
   - [x] Document immutability constraint of cluster-CIDR and service-CIDR in role defaults
+- [x] **Scoped Host Key Verification (Review 2 R2-7):**
+  - [x] Remove global `host_key_checking = False` from `ansible.cfg`
+  - [x] Rely on standard `known_hosts` validation for persistent Bare Metal and RemoteLab nodes
+  - [x] Scope `StrictHostKeyChecking no` exclusively to ephemeral AWS PoC via Terraform-generated `ssh_config`
 - [ ] **Ingress & MetalLB Network Preparation (VLAN 30):**
   - [ ] Disable K3s ServiceLB (`disable: [servicelb]` in `config.yaml`) to prevent conflicts with MetalLB
   - [ ] Define MetalLB L2-AddressPool for VLAN 30 (`10.55.64.200 - 10.55.64.249`) (Traefik .200, Pi-hole .201, Omada .202)
