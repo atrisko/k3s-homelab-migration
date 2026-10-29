@@ -163,10 +163,13 @@ The `storage_poc` role prepares dedicated storage for Kubernetes persistent volu
 3. **Mount Point Provisioning (`file`):**
    * Ensures `{{ storage_mount_point }}` directory exists with permissions `0755`.
 4. **Root-Disk Overflow Directory Guard (`file` / `attributes: +i` - Review 2 R2-1):**
-   * Applies the immutable attribute (`chattr +i`) to `{{ storage_mount_point }}` when unmounted (`ansible_facts['mounts']` check). If the storage volume fails to mount at boot, any write attempts to the directory fail with `Operation not permitted`, preventing silent root filesystem overflow.
+   * Applies the immutable attribute (`chattr +i`) to the directory **underneath** `{{ storage_mount_point }}` on the root filesystem. If the storage volume is missing (boot without disk, lazy unmount), any write attempt to the path fails with `Operation not permitted`, even for root, preventing silent root filesystem pollution.
+   * Works identically on fresh and already mounted nodes: the role bind-mounts the root filesystem without submounts (`mount --bind /`) to a temporary directory in `/run`, sets the flag on the hidden directory there, and always unmounts the view afterwards (`block`/`always`). Only setting the flag reports `changed`; the helper commands also run in check mode.
+   * Assumes the parent directory of the mount point resides on the root filesystem.
 5. **Persistent Mounting (`ansible.posix.mount`):**
    * Mounts the device to `{{ storage_mount_point }}` and registers the entry in `/etc/fstab` with `opts: "{{ storage_volume_options }}"`.
    * The `nofail` flag ensures the host boots successfully into multi-user mode even if the storage volume is temporarily detached.
+   * `passno: 2` runs `fsck` before mounting. If the filesystem cannot be repaired automatically, the mount unit stays down and K3s does not start (`RequiresMountsFor=`), while the host remains reachable via SSH.
    * Once mounted, the underlying immutable attribute is masked by the mounted filesystem and writes proceed normally.
 
 ### Device Addressing in Inventories
