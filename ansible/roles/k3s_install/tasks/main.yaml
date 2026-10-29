@@ -136,8 +136,6 @@
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
   when: k3s_check.rc != 0 or (k3s_check.stdout | regex_search('v\\d\\S*')) != k3s_version
 
-
-
 - name: Ensure K3s service is running and enabled
   ansible.builtin.systemd:
     name: k3s
