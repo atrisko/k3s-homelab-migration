@@ -6,6 +6,7 @@
 ---
 
 ## 🏗️ Phase 1: AWS PoC Infrastructure (Terraform)
+
 *Goal: Provide an ephemeral, cost-controlled testbed.*
 
 - [x] Define VPC, subnets, and security groups (`terraform/aws-poc/network.tf`)
@@ -25,94 +26,31 @@
 ---
 
 ## ⚙️ Phase 2: Ansible Baseline Setup (Local Control Node)
+
 *Goal: Structure server configuration management as code.*
 
-- [x] Establish directory structure (`ansible.cfg`, `inventory/`, `roles/`, `site.yaml`)
-- [x] Configure inventory for AWS EC2 referencing Terraform `ssh_config` (`inventory/hosts.yaml`)
-- [x] Test connectivity via `ansible all -m ping`
-- [x] **Role `os_base`:** Base packages, system hardening & maintenance
-  - [x] Base packages (`curl`, `git`, `htop`, `jq`, `open-iscsi`, `nfs-common`, `systemd-timesyncd`)
-  - [x] OpenSSH hardening (`sshd_config.d/00-hardening.conf`: key-only authentication, `AllowUsers`, DoS limits)
-  - [x] Kernel sysctl hardening (`99-kubernetes-hardening.conf`: loose-mode `rp_filter = 2` per ADR-0005, anti-spoofing, forwarding)
-  - [x] Kernel module blacklisting (`99-hardening-blacklist.conf`: obsolete filesystems & uncommon network protocols)
-  - [x] Systemd-journald limits (`00-limits.conf`: 1 GB `SystemMaxUse` against K8s DiskPressure)
-  - [x] NTP time synchronization via `systemd-timesyncd`
-  - [x] Automated security updates via `unattended-upgrades` (ADR-0004)
-  - [x] Ansible authentication: `/etc/sudoers.d/10-ansible` with `{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL` (uninterrupted automation without plaintext passwords)
-- [x] **Role `os_base` (IPv6 ULA):**
-  - [x] Reboot persistence via dynamic detection of `ifupdown` (`/etc/network/interfaces.d/60-ula.cfg`) and `netplan` (`/etc/netplan/60-ula.yaml`) per ADR-0001
-  - [x] Immediate non-destructive runtime activation via `ip -6 addr replace`
-- [x] **Role `storage_poc`:**
-  - [x] Format EBS volume & mount to `/mnt/appdata`
-  - [x] Persistent device identification via `/dev/disk/by-id/` (device name independence)
-  - [x] Mount option `nofail` configured (prevents boot hangs on detached disks)
-  - [x] Storage safety assertion: pre-flight assertion verifying that target storage device variable is defined
-- [x] **Ansible Role Modularization & Defaults:**
-  - [x] Create `requirements.yaml` for external collections (`ansible.posix`, `community.general`, `ansible.utils`)
-  - [x] Define role variables in `defaults/main.yaml` overridable via inventory `group_vars/`
+- [x] **Configuration as code:** All node configuration is applied from this repository by a single playbook (`site.yaml`). The target environment is selected via inventory, role parameters are overridable per inventory, and required collections are declared in `requirements.yaml`.
+- [x] **AWS connectivity:** Ansible reaches the AWS node through the Terraform-generated SSH config without manual setup.
+- [x] **Hardened base system (ADR-0004, ADR-0005):** SSH accepts key-based logins for the automation user only. Kernel parameters enforce anti-spoofing (loose-mode `rp_filter` for CNI compatibility), disable redirects and restrict kernel information leaks; uncommon filesystems and network protocols cannot be loaded. The journal is size-capped against Kubernetes DiskPressure, time is NTP-synchronized, security updates are installed automatically, and iSCSI/NFS client tooling is present.
+- [x] **Non-interactive automation:** After the initial run, the automation user executes privileged tasks without a password prompt; no plaintext passwords are stored.
+- [x] **Persistent IPv6 ULA (ADR-0001):** The static ULA is active immediately after provisioning, without network interruption, and persists across reboots.
+- [x] **Appdata volume:** The data volume is mounted at the appdata path and identified by a stable device ID, independent of kernel device naming. The node still boots if the disk is missing; provisioning aborts if no data device is declared.
 
 ---
 
 ## 🚢 Phase 3: K3s & Core Platform Bootstrap (Current Phase)
+
 *Goal: Install container orchestration runtime and bootstrap initial services.*
 
-- [x] Pre-flight assertions: validate IPv6 ULA assignment and active `/mnt/appdata` mountpoint
-- [x] K3s dual-stack configuration: generate declarative `/etc/rancher/k3s/config.yaml` before service start (cluster-CIDR, service-CIDR, node-IP per ADR-0001)
-- [x] Redirect K3s local-path provisioner to dedicated SSD storage (`default-local-storage-path: "/mnt/appdata"`)
-- [x] Install K3s via `/usr/local/lib/k3s/install.sh` (pinned script with SHA256 verification)
-- [x] Enable and start K3s systemd service
-- [x] Bootstrap ArgoCD via K3s `HelmChart` CRD (`kube-system/argocd`) with pinned chart version (`10.10.5`, packaging Argo CD v3.5.x per Review 2 R2-2)
-- [x] Create decoupled root application (`k8s/bootstrap/root-app.yaml`) and apply via task
-- [x] Connect ArgoCD to GitHub repository and assign sync permissions (`root-app` syncs from public repository)
-- [x] Deploy smoke-test workload (Caddy in `k8s/test-workload/caddy.yaml`) declaratively via GitOps
-- [x] **K3s Versioning & Restart Handler:**
-  - [x] Pin K3s version (`INSTALL_K3S_VERSION: "{{ k3s_version }}"` in `defaults/main.yaml`)
-  - [x] Idempotent upgrade check (evaluate `k3s --version`, execute script only when version differs)
-  - [x] Connect `Restart k3s` handler on `config.yaml` modifications
-- [x] **Remote `kubectl` & TLS-SAN Configuration:**
-  - [x] Declare `k3s_tls_san` in `defaults/main.yaml` and integrate dynamic `tls-san` block in `config.yaml`
-  - [x] ADR-0007: Declarative TLS Subject Alternative Names (SANs) for remote K8s API access
-  - [x] Refine access model: API port 6443 restricted to `admin_cidr`; remote access primarily via SSH port forwarding (`ssh -L 6443:localhost:6443`)
-- [x] **Runtime Storage Guard (Review 2 R2-1):**
-  - [x] Add systemd drop-in with `RequiresMountsFor={{ k3s_storage_path }}` to `k3s.service`
-  - [x] Apply `chattr +i` to the underlying mount directory before mounting (fails write attempts if storage is detached, preventing silent root disk pollution)
-- [x] **ArgoCD Modernization (Review 2 R2-2):**
-  - [x] Upgrade ArgoCD `HelmChart` CR to a supported 3.x chart line
-  - [x] Document version compatibility matrix in ADR-0006
-- [x] **Decouple Role Variables & Explicit Node-IP (Review 2 R2-3):**
-  - [x] Centralize cross-cutting parameters (`node_ipv6_ula`, `node_ipv4`, `appdata_path`) in `inventory/group_vars/all.yaml`
-  - [x] Derive `node-ip` directly using `ansible.utils.ipaddr('address')` filter, replacing regex fact matching
-  - [x] Explicitly pin `node_ipv4` in RemoteLab inventory and Terraform inventory generator to prevent DHCP drift
-  - [x] Replace regex pre-flight check with direct `assert` on assigned IP addresses
-- [x] **Persistent SLAAC under IPv6 Forwarding (Review 2 R2-4):**
-  - [x] Set `accept_ra = 2` for `all` and `default` in `99-kubernetes-hardening.conf`
-  - [x] Add `accept-ra: true` to Netplan ULA template for cloud/netplan hosts
-  - [x] Apply `accept_ra = 2` dynamically at runtime on primary network interface via `/etc/sysctl.d/60-accept-ra.conf`
-- [x] **Network Framework Detection via Active Service (Review 2 R2-5):**
-  - [x] Detect network framework dynamically via active systemd services (`networking.service` vs. `systemd-networkd.service`) using `service_facts`
-  - [x] Eliminate ambiguous directory-existence checks (`stat`) preventing dual configuration writes
-  - [x] Enforce mutual exclusivity via `set_fact` and fail fast (`assert`) if no supported network service is active
-- [x] **Secure & Persistent K3s Installation (Review 2 R2-6):**
-  - [x] Pin install script download to Git version tag with SHA256 checksum verification (`k3s_install_script_checksum`)
-  - [x] Store install script in persistent directory `/usr/local/lib/k3s/install.sh` ensuring idempotency across reboots
-  - [x] Prevent substring version match false-positives via exact regex comparison (`(k3s_check.stdout | regex_search('v\\S+')) != k3s_version`)
-  - [x] Document immutability constraint of cluster-CIDR and service-CIDR in role defaults
-- [x] **Scoped Host Key Verification (Review 2 R2-7):**
-  - [x] Remove global `host_key_checking = False` from `ansible.cfg`
-  - [x] Rely on standard `known_hosts` validation for persistent Bare Metal and RemoteLab nodes
-  - [x] Scope `StrictHostKeyChecking no` exclusively to ephemeral AWS PoC via Terraform-generated `ssh_config`
-- [x] **Kernel Security Updates via Unattended-Upgrades (Review 2 R2-8):**
-  - [x] Remove `linux-image*` and `linux-headers*` from `Package-Blacklist` in `os_base/tasks/main.yaml`
-  - [x] Align patch strategy with decision against ZFS/DKMS (ruling out consumer SSD wear-and-tear)
-  - [x] Permit automated Debian-Security kernel patching coordinated with scheduled 03:00 reboot window (ADR-0004)
-- [x] **Root Application Finalizer Guard (Review 2 R2-9):**
-  - [x] Remove cascading `resources-finalizer` from `k8s/bootstrap/root-app.yaml` to prevent cluster-wide resource and PVC wipeouts
-  - [x] Clarify boundary between smoke-test workload (`k8s/test-workload/`) and upcoming Phase 6 App-of-Apps (`k8s/apps/`)
-- [x] **Terraform Perimeter & Hardening (Review 2 R2-11):**
-  - [x] Restrict ingress HTTP (80) & HTTPS (443) exclusively to `admin_cidr` (closing unused public exposure)
-  - [x] Validate dynamic operator public IP resolution via `postcondition` on `data.http.my_public_ip` (status 200)
-  - [x] Use `abspath(path.module)` for generated `ssh_config` path in Ansible inventory template
-  - [x] Explicitly declare `hashicorp/local` provider constraint in `required_providers`
+- [x] **K3s runtime (dual-stack, ADR-0001, R2-3):** K3s runs as an enabled systemd service with dual-stack node, pod and service networking. Node IPs are declared explicitly instead of being inferred from DHCP. Provisioning aborts before installation if the ULA or the appdata mount is missing.
+- [x] **Reproducible installation (R2-6):** The K3s installer is pinned to the declared version and integrity-verified before execution. Repeated playbook runs, including after a reboot, report no changes; an upgrade only happens when the declared version differs. Configuration changes take effect without manual restarts.
+- [x] **Persistent storage (R2-1):** Persistent volumes land on the dedicated appdata volume, never on the root disk. K3s does not run without the appdata volume, nothing reaches the root disk while it is missing, and a corrupted appdata filesystem keeps K3s down instead of starting on damaged data.
+- [x] **GitOps bootstrap (R2-2, R2-9):** Argo CD is installed declaratively at a pinned, supported 3.x chart version and continuously syncs the smoke-test workload (Caddy) from the public repository, including self-heal. Deleting the root application never cascades into workload or PVC deletion.
+- [x] **Remote API access (ADR-0007):** The Kubernetes API is reachable only from `admin_cidr` or via SSH port forwarding; additional TLS SANs can be declared per environment.
+- [x] **IPv6 under forwarding (R2-4, R2-5):** The node keeps its static ULA and its SLAAC addresses across reboots while IPv6 forwarding is enabled. Exactly one network stack (ifupdown or netplan) carries the ULA configuration; provisioning fails fast if neither is active.
+- [x] **Host access (R2-7):** Persistent nodes (RemoteLab, bare metal) are reached with standard host key verification; relaxed checking is limited to the ephemeral AWS node.
+- [x] **Kernel security updates (R2-8, ADR-0004):** Debian security updates, including kernel updates, are installed automatically and followed by a reboot in the 03:00 window.
+- [x] **AWS perimeter (R2-11):** All inbound traffic to the AWS node (SSH, API, HTTP/S) is restricted to the operator IP; a failed IP lookup aborts the Terraform run instead of producing an open rule.
 - [ ] **Ingress & MetalLB Network Preparation (VLAN 30):**
   - [ ] Disable K3s ServiceLB (`disable: [servicelb]` in `config.yaml`) to prevent conflicts with MetalLB
   - [ ] Define MetalLB L2-AddressPool for VLAN 30 (`10.55.64.200 - 10.55.64.249`) (Traefik .200, Pi-hole .201, Omada .202)
@@ -126,6 +64,7 @@
 ---
 
 ## 🤖 Phase 4: CI/CD & Code Quality (GitHub Actions)
+
 *Goal: Automate testing, linting, and validation pipelines.*
 
 - [ ] Define pipeline logic: syntax check & linting for Ansible playbooks (`ansible-lint`, `yamllint`)
@@ -145,11 +84,12 @@
 ---
 
 ## 🧪 Phase 4.5: RemoteLab Staging Environment (Hyper-V VM)
+
 *Goal: Validate real-world LAN networking, storage persistence, and ingress without bare-metal risk.*
 
 - [x] ADR-0002: Dedicated RemoteLab staging layer adopted
 - [x] Configure inventory `inventory/remotelab.yaml` & SCSI WWID storage addressing
-- [ ] Provision Debian 13 VM in RemoteLab (`site.yaml`)
+- [x] RemoteLab VM provisioned (Debian 13) and configured via `site.yaml`; a checkpoint of the fresh install allows clean bootstrap tests
 - [ ] Validate dual-stack behavior with real router/SLAAC + static ULA in home network
 - [ ] Verify 24-hour SLAAC stability under IPv6 forwarding (`accept_ra = 2` verification)
 - [ ] **Caddy $\rightarrow$ Traefik Ingress & Header Staging Test (ADR-0003):**
@@ -165,6 +105,7 @@
 ---
 
 ## 🖥️ Phase 5: Bare-Metal Foundation (The Hardware Platform)
+
 *Goal: Deploy the validated architecture onto physical hardware – cleanly isolated from production data.*
 
 - [ ] Prepare physical hardware & install base Debian 13 on system SSD
@@ -193,6 +134,7 @@
 ---
 
 ## 🚀 Phase 6: GitOps Workload Migration & Secrets Management
+
 *Goal: Manage container workloads and application secrets declaratively via GitOps.*
 
 - [x] Install ArgoCD via Ansible HelmChart CRD in cluster (Phase 3 PoC)
@@ -212,6 +154,7 @@
 ---
 
 ## 🛡️ Phase 7: Day-2 Operations & Data Security
+
 *Goal: Secure and automate the system before migrating live production data.*
 
 - [x] ADR-0006: Dual-Track Update & Lifecycle Strategy adopted (OS security updates vs. playbook K3s upgrades)
@@ -221,11 +164,13 @@
 - [ ] **Hardware, Storage & Backup Monitoring:**
   - [ ] **S.M.A.R.T. Monitoring:** `prometheus-smartctl-exporter` for drive health (pending sectors, NVMe wear level)
   - [ ] **Job & Timer Monitoring:** Monitor SnapRAID and Restic backup jobs (systemd-exporter or Healthchecks ping)
+  - [ ] **Node Heartbeat (Dead Man's Switch):** Host-level systemd timer pings an external service (e.g. Healthchecks.io) only while `k3s` is active; a missing ping alerts on both node outage and K3s not starting (e.g. appdata mount or fsck failure). Push model needs outbound traffic only; the receiver must sit outside the homelab failure domain, since in-cluster Alertmanager cannot report its own cluster being down
   - [ ] **Alertmanager Routing:** Connect notification channels (Discord, Telegram, or email) for parity or disk issues
 
 ---
 
 ## 🚧 Phase 7.5: Pre-Migration Gate & Resilience Verification
+
 *Goal: Prove system resilience and recovery procedures before migrating Unraid data.*
 
 - [ ] **3-2-1 Backup for Irreplaceable Data:** External backup of photos, documents, appdata, and Unraid flash drive
@@ -239,6 +184,7 @@
 ---
 
 ## 🏁 Phase 8: Storage Array Cutover & Data Migration
+
 *Goal: Retain multi-terabyte bulk data disks in-place, migrate application states, and establish SnapRAID parity.*
 
 - [ ] **Phase 8.1: In-Place Drive Attachment & Initial Read-Only Mount:**
