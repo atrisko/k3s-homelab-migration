@@ -68,25 +68,48 @@
     - apt-daily.timer
     - apt-daily-upgrade.timer
 
-- name: Gather service facts
-  ansible.builtin.service_facts:
+- name: Query ifupdown state of primary interface
+  ansible.builtin.command: "ifquery --state {{ ansible_facts['default_ipv4']['interface'] }}"
+  register: os_ifupdown_state
+  changed_when: false
+  check_mode: false
+  failed_when: false   # ifquery may be missing (AWS) or report nothing
 
-- name: Determine active network management framework
+- name: Query networkd setup state of primary interface
+  ansible.builtin.command: "networkctl list --no-legend {{ ansible_facts['default_ipv4']['interface'] }}"
+  register: os_networkd_state
+  changed_when: false
+  check_mode: false
+  failed_when: false   # warns when networkd is not running (RemoteLab)
+
+- name: Check whether netplan is installed
+  ansible.builtin.stat:
+    path: /usr/sbin/netplan
+  register: os_netplan_binary
+
+- name: Derive which network stack manages the primary interface
   ansible.builtin.set_fact:
-    os_network_framework: >-
-      {{
-        'ifupdown' if ('networking.service' in ansible_facts.services and ansible_facts.services['networking.service']['state'] == 'running')
-        else ('netplan' if ('systemd-networkd.service' in ansible_facts.services and ansible_facts.services['systemd-networkd.service']['state'] == 'running')
-        else 'unknown')
-      }}
+    os_ifupdown_owns: "{{ (ansible_facts['default_ipv4']['interface'] ~ '=') in os_ifupdown_state.stdout }}"
+    os_networkd_owns: "{{ 'configured' in os_networkd_state.stdout.split() }}"
 
-- name: Verify that an active and supported network framework was detected
+- name: Fail if no network stack manages the primary interface
   ansible.builtin.assert:
-    that:
-      - os_network_framework in ['ifupdown', 'netplan']
-    fail_msg: >
-      No supported active network management framework detected!
-        Neither networking.service (ifupdown) nor systemd-networkd.service (netplan) is currently running.
+    that: os_ifupdown_owns or os_networkd_owns
+    fail_msg: "Neither ifupdown nor systemd-networkd manages {{ ansible_facts['default_ipv4']['interface'] }}."
+
+- name: Fail if both network stacks manage the primary interface
+  ansible.builtin.assert:
+    that: not (os_ifupdown_owns and os_networkd_owns)
+    fail_msg: "Both ifupdown and systemd-networkd manage {{ ansible_facts['default_ipv4']['interface'] }}. Resolve the conflict on the host first."
+
+- name: Fail if systemd-networkd manages the interface without netplan
+  ansible.builtin.assert:
+    that: not os_networkd_owns or os_netplan_binary.stat.exists
+    fail_msg: "systemd-networkd manages {{ ansible_facts['default_ipv4']['interface'] }}, but netplan is not installed."
+
+- name: Set detected network framework
+  ansible.builtin.set_fact:
+    os_network_framework: "{{ 'ifupdown' if os_ifupdown_owns else 'netplan' }}"
 
 - name: Ensure persistent IPv6 ULA configuration exists in Debian (ifupdown / RemoteLab)
   ansible.builtin.copy:
