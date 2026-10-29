@@ -162,9 +162,10 @@ The `storage_poc` role prepares dedicated storage for Kubernetes persistent volu
    * Idempotently formats `{{ data_disk_device }}` with `{{ storage_filesystem_type }}` if unformatted.
 3. **Mount Point Provisioning (`file`):**
    * Ensures `{{ storage_mount_point }}` directory exists with permissions `0755`.
-4. **Root-Disk Overflow Directory Guard (`file` / `attributes: +i` - Review 2 R2-1):**
+4. **Root-Disk Overflow Directory Guard (`stat` / `chattr +i` - Review 2 R2-1):**
    * Applies the immutable attribute (`chattr +i`) to the directory **underneath** `{{ storage_mount_point }}` on the root filesystem. If the storage volume is missing (boot without disk, lazy unmount), any write attempt to the path fails with `Operation not permitted`, even for root, preventing silent root filesystem pollution.
-   * Works identically on fresh and already mounted nodes: the role bind-mounts the root filesystem without submounts (`mount --bind /`) to a temporary directory in `/run`, sets the flag on the hidden directory there, and always unmounts the view afterwards (`block`/`always`). Only setting the flag reports `changed`; the helper commands also run in check mode.
+   * Works identically on fresh and already mounted nodes: the role bind-mounts the root filesystem without submounts (`mount --bind /`) to a temporary directory in `/run`, reads the flags of the hidden directory there (`stat`), runs `chattr +i` only if `i` is missing, and always unmounts the view afterwards (`block`/`always`). Only setting the flag reports `changed`; the helper commands also run in check mode, while `chattr` itself is skipped in check mode.
+   * The `file` module's `attributes: +i` is deliberately not used: it compares the full flag string (e.g. `ie` on ext4) with `i` and therefore reports `changed` on every run.
    * Assumes the parent directory of the mount point resides on the root filesystem.
 5. **Persistent Mounting (`ansible.posix.mount`):**
    * Mounts the device to `{{ storage_mount_point }}` and registers the entry in `/etc/fstab` with `opts: "{{ storage_volume_options }}"`.

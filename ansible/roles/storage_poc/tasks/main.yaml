@@ -33,12 +33,14 @@
       changed_when: false
       check_mode: false
 
-    - name: Set immutable flag on the hidden mount point directory
-      ansible.builtin.file:
+    - name: Read attributes of the hidden mount point directory
+      ansible.builtin.stat:
         path: "{{ storage_rootfs_view.stdout }}{{ storage_mount_point }}"
-        state: directory
-        attributes: +i
-        mode: '0755'
+      register: storage_hidden_dir
+
+    - name: Set immutable flag on the hidden mount point directory
+      ansible.builtin.command: "chattr +i {{ storage_rootfs_view.stdout }}{{ storage_mount_point }}"
+      when: "'i' not in storage_hidden_dir.stat.attr_flags"
 
   always:
     - name: Unmount root filesystem view
