@@ -33,4 +33,5 @@
     src: "{{ data_disk_device }}"
     fstype: "{{ storage_filesystem_type }}"
     opts: "{{ storage_volume_options }}"
+    passno: "2" # fsck before mounting; an unrepairable filesystem keeps the mount (and K3s) down
     state: mounted # Ensures the volume is both currently mounted AND added to fstab for reboot persistence
