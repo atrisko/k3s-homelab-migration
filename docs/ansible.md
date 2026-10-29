@@ -234,7 +234,7 @@ The role bootstraps the K3s engine and ArgoCD, decoupling platform runtime provi
 3. **Versioned K3s Installation & Upgrades (Review 2 R2-6):**
    * Pre-creates persistent library directory `/usr/local/lib/k3s` (mode `0755`).
    * Downloads install script pinned to Git tag (`https://raw.githubusercontent.com/k3s-io/k3s/{{ k3s_version }}/install.sh`) with SHA256 checksum verification (`k3s_install_script_checksum`).
-   * Checks currently installed version via `k3s --version` and executes `/usr/local/lib/k3s/install.sh` only if uninstalled or exact version differs (`(k3s_check.stdout | regex_search('v\\S+')) != k3s_version`).
+   * Checks currently installed version via `k3s --version` and executes `/usr/local/lib/k3s/install.sh` only if uninstalled or exact version differs (`(k3s_check.stdout | regex_search('v\\d\\S*')) != k3s_version`). The digit after `v` prevents matching the word `version` in the `k3s --version` output.
    * Ensures systemd service `k3s` is running and enabled (`state: started`, `enabled: true`).
 4. **CRD Establishment Wait:**
    * Polls `crd/applications.argoproj.io` until established, using configurable timings (`k3s_argocd_wait_retries: 24`, `k3s_argocd_wait_delay: 5`).
