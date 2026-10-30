@@ -63,6 +63,22 @@ flowchart LR
     2. `storage_poc`
     3. `k3s_install`
 
+### Node Preconditions (RemoteLab / Bare Metal)
+
+The playbook does not bootstrap a bare Debian installation. The following state must be prepared manually before the first run. On AWS, Terraform and the AMI provide it.
+
+| Precondition | Inventory variable | Failure if missing |
+| :--- | :--- | :--- |
+| Debian 13 with `python3`, network managed by `ifupdown` or netplan | — | Network stack detection in `os_base` fails |
+| Administrator user created during installation | `ansible_user` | Connection fails |
+| SSH public key of the control node in the user's `authorized_keys`, host key in the control node's `known_hosts` | — | Connection fails; after `os_base` disables password authentication, the node is locked out |
+| Passwordless sudo for `ansible_user` (`ALL=(ALL) NOPASSWD: ALL`) | — | `become` fails without `-K`. `os_base` takes over this rule afterwards in `/etc/sudoers.d/10-ansible` |
+| Static IPv4 on the primary interface (static config or DHCP reservation) | `ansible_host`, `node_ipv4` | IPv4 verification in `k3s_install` fails |
+| Empty second disk attached (no partitions; an ext4 filesystem from a previous run is kept) | `data_disk_device` (`/dev/disk/by-id/...`) | Pre-flight check or filesystem creation in `storage_poc` fails |
+| Parent directory of `appdata_path` on the root filesystem (no separate `/mnt` partition) | `appdata_path` | The `chattr +i` guard protects the wrong filesystem |
+
+The IPv6 ULA is not a precondition. `os_base` configures it.
+
 ---
 
 ## 2. OS Baseline & Security Hardening (`roles/os_base`)
