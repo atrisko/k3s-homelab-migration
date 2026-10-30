@@ -46,6 +46,7 @@ flowchart LR
 * **`ansible.cfg`:**
   * `inventory = ./inventory/hosts.yaml`: Default inventory location.
   * `roles_path = ./roles`: Modular role directory.
+  * `interpreter_python = /usr/bin/python3`: Fixed Python interpreter on all targets instead of automatic discovery. The unversioned path follows Debian release upgrades; a host variable `ansible_python_interpreter` can still override it for a non-Debian node.
   * `stdout_callback = debug`: Human-readable console output.
   * `pipelining = True`: Executes Python tasks directly via `stdin` on the target node instead of transferring temporary files per task, reducing round-trip latency.
   * *Host Key Verification (Review 2 R2-7):* Global `host_key_checking = False` is deliberately omitted. Persistent nodes (RemoteLab & Bare Metal) rely on standard SSH host-key validation via `~/.ssh/known_hosts`, preventing LAN MitM attacks. Ephemeral disposable nodes (AWS Cloud PoC) configure `StrictHostKeyChecking no` scoped exclusively via their dedicated `ssh_config`.
