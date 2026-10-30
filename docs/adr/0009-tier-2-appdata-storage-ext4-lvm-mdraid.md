@@ -38,6 +38,10 @@ NVMe partition ──► mdraid RAID1 (/dev/md0) ──► LVM VG (vg_appdata) �
 3. **Conservative allocation.** LVs start small. Roughly 30–40 % of the VG stays unallocated as reserve. Growing is done online (`lvextend -r`), shrinking is avoided.
 4. **ext4 on each LV.** Mounted with `defaults,nofail`. TRIM via the periodic `fstrim.timer` instead of the `discard` mount option.
 5. **Monitoring.** Array state is monitored (`mdadm --monitor` and/or the node-exporter `mdadm` collector, Phase 6), so that a degraded or failed array is noticed.
+6. **K3s is bound to every Tier-2 mount.** The K3s unit uses `RequiresMountsFor=` **and** `BindsTo=` on each mount unit it depends on.
+   * `RequiresMountsFor=` alone stops K3s only when the mount unit is stopped by a job. If the mount disappears outside systemd (e.g. `umount -l`, device loss), K3s keeps running on a detached filesystem (run 0 and run 1, STO-05), and only the `chattr +i` guard protects the root disk.
+   * `BindsTo=` stops K3s whenever the mount unit becomes inactive. A missing volume becomes a loud, complete outage that the node heartbeat (Phase 7) reports, instead of a silent partial failure.
+   * This applies already to the single appdata mount of `storage_poc` on the RemoteLab.
 
 ## Consequences
 
@@ -53,6 +57,7 @@ NVMe partition ──► mdraid RAID1 (/dev/md0) ──► LVM VG (vg_appdata) �
 * **No data checksums.** Unlike ZFS/Btrfs, silent data corruption is not detected (ext4 only checksums metadata). Mitigated by backups and SMART monitoring.
 * **No cheap snapshots.** LVM snapshots exist but are slow for writes. Consistent backups rely on application-level hooks (Phase 7) instead.
 * **More layers to automate.** `mdadm` has no dedicated Ansible module (command + templated `mdadm.conf` + `update-initramfs`). LVM is covered by `community.general.lvg` / `lvol`.
+* **A short mount interruption takes down the whole cluster** (decision 6). This is intended: losing Tier 2 must not go unnoticed.
 * **The storage role and guards must follow the layout.** `storage_poc` (one disk, one mount) does not cover this, and the K3s storage guard (Review 2 R2-1, `RequiresMountsFor`) must cover each mount point K3s depends on.
 
 ## Alternatives Considered

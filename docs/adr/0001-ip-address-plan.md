@@ -2,6 +2,7 @@
 
 * **Status:** Accepted
 * **Date:** 2026-10-14
+* **Amended:** 2026-10-30 (decision 6: static IPv4 on persistent nodes)
 
 ## Context
 
@@ -44,6 +45,16 @@ constraints shape the addressing scheme:
 | Services (`service-cidr`) | `10.43.0.0/16` | `fd85:cc6d:b16f:4300::/112` |
 | LoadBalancer pool (reserved) | `10.55.64.200–249` | `fd85:cc6d:b16f:30::200–249` |
 
+6. **Configure IPv4 statically on persistent nodes** (RemoteLab, bare metal),
+   with `auto <iface>` instead of `allow-hotplug <iface>` in ifupdown. AWS keeps
+   DHCP, which is handled there by netplan and systemd-networkd.
+   * On Debian 13, ifupdown runs **dhcpcd** for `inet dhcp`. dhcpcd takes over
+     router advertisements itself and sets `accept_ra=0` on the interface, so
+     after every reboot the node loses its SLAAC address and IPv6 default route
+     (run 1, SYS-08). Without `inet dhcp`, dhcpcd does not run.
+   * With `allow-hotplug`, the interface is brought up by `ifup@<iface>.service`
+     and not by `networking.service`, so `network-online.target` (and K3s
+     behind it) does not wait for it. `auto` makes the dependency explicit.
 
 ## Consequences
 
@@ -66,6 +77,9 @@ constraints shape the addressing scheme:
   used less than expected in everyday tests.
 * The Pod CIDR `fd85:cc6d:b16f:4200::/56` and Service CIDR
   `fd85:cc6d:b16f:4300::/112` must never be assigned to a VLAN.
+* Static IPv4 on persistent nodes is a manual node precondition
+  ([ansible.md](../ansible.md#node-preconditions-remotelab--bare-metal)). A DHCP
+  reservation is no longer sufficient for ifupdown nodes.
 
 ## Alternatives considered
 

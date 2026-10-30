@@ -73,7 +73,7 @@ The playbook does not bootstrap a bare Debian installation. The following state 
 | Administrator user created during installation | `ansible_user` | Connection fails |
 | SSH public key of the control node in the user's `authorized_keys`, host key in the control node's `known_hosts` | — | Connection fails; after `os_base` disables password authentication, the node is locked out |
 | Passwordless sudo for `ansible_user` (`ALL=(ALL) NOPASSWD: ALL`) | — | `become` fails without `-K`. `os_base` takes over this rule afterwards in `/etc/sudoers.d/10-ansible` |
-| Static IPv4 on the primary interface (static config or DHCP reservation) | `ansible_host`, `node_ipv4` | IPv4 verification in `k3s_install` fails |
+| Static IPv4 on the primary interface, configured as `auto <iface>` with `inet static` (no DHCP, ADR-0001 decision 6) | `ansible_host`, `node_ipv4` | With `inet dhcp`, dhcpcd sets `accept_ra=0` after every reboot (no SLAAC, no IPv6 default route); with `allow-hotplug`, K3s does not wait for the interface. A wrong address fails the IPv4 verification in `k3s_install` |
 | Empty second disk attached (no partitions; an ext4 filesystem from a previous run is kept) | `data_disk_device` (`/dev/disk/by-id/...`) | Pre-flight check or filesystem creation in `storage_poc` fails |
 | Parent directory of `appdata_path` on the root filesystem (no separate `/mnt` partition) | `appdata_path` | The `chattr +i` guard protects the wrong filesystem |
 
