@@ -91,6 +91,7 @@ The two ApplicationSets see different revisions. After a move from tracking to p
 ## Consequences
 
 **Positive:**
+
 * Platform, network-critical and stateful components reach production only with an explicit release.
 * Production runs exactly the commit that was tested on AWS.
 * Rollback of the pinned track needs no `git revert` under pressure and works while ingress is down.
@@ -98,6 +99,7 @@ The two ApplicationSets see different revisions. After a move from tracking to p
 * `main` holds only tested, linear, signed history.
 
 **Negative & Trade-offs:**
+
 * **Every release is a manual step:** fast-forward, update the SHA in the inventory, take backups where needed, run the playbook.
 * **ADR-0006 Track 1 is amended.** Continuous deployment from `main` applies only to the tracking track. Renovate updates for pinned components, including auto-merged patches, reach production only with the next release.
 * **Version skew between tracks.** Tracking applications run newer manifests than the pinned platform. A tracking application that relies on an unreleased platform feature breaks.

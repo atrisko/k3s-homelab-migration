@@ -46,7 +46,7 @@ Every test case names the environment responsible for it. A milestone is passed 
 
 ### 3. GitOps uses a Kustomize base with per-cluster overlays
 
-```
+```text
 k8s/
 ├── base/                 # shared manifests (Traefik config, applications)
 ├── components/           # optional building blocks (e.g. metallb/)
@@ -62,12 +62,14 @@ k8s/
 ## Consequences
 
 **Positive:**
+
 * Full-stack tests no longer depend on RemoteLab's RAM limit or its remaining lifetime.
 * Roles and base manifests stay environment-agnostic. Adding an environment means adding an inventory directory and an overlay, not touching roles.
 * Environment differences are visible in one place per layer (`inventory/<env>/`, `k8s/clusters/<env>/`) and can be reviewed as such.
 * Test results can be tied to an environment with a known capability set.
 
 **Negative & Trade-offs:**
+
 * **AWS never matches the production ingress path.** AWS uses ServiceLB instead of MetalLB and has no Caddy DMZ VM. The ingress path is validated only in RemoteLab.
 * **No successor for RemoteLab's tests.** Once RemoteLab access ends, AWS takes over the tests before updates, but MetalLB L2, VLAN trunking, dual-stack/SLAAC and the Caddy → Traefik path cannot be tested there. A regression in these components then shows up in production first and can take down ingress for all services. This is accepted for an outage of up to one day:
   * Production follows a fixed release state and can be rolled back by a targeted playbook run over SSH, without a new commit and without touching K3s ([ADR-0011](0011-deployment-model.md)).

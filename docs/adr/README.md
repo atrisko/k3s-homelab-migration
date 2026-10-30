@@ -38,7 +38,6 @@ New ADRs typically start as `Proposed` or `Accepted`:
 | [0010](0010-test-environment-roles-and-declarative-environment-separation.md) | Test Environment Roles and Declarative Environment Separation | Proposed |
 | [0011](0011-deployment-model.md) | Deployment Model with Test Branches and Pinned Releases for Critical Components | Proposed |
 
-
 ## Template
 
 ```markdown

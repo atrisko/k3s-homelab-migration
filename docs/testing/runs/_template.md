@@ -1,4 +1,4 @@
-# Run YYYY-MM-DD · <env>
+# Run YYYY-MM-DD · `<env>`
 
 - **Commit:** `<sha>`
 - **Environment:** aws | remotelab | baremetal
@@ -8,7 +8,7 @@
 - **Scope:** full catalog | subset: `<IDs>` (reason: …)
 
 | ID | Result | Note |
-|----|--------|------|
+| --- | --- | --- |
 | AWS-01 | pass / fail / skip / n/a | |
 | … | | |
 
@@ -21,5 +21,5 @@
 Defects fixed before this run. They do not show up as failures above.
 
 | Fix commit | Ref | Test ID | Finding | Refuted roadmap item |
-|------------|-----|---------|---------|----------------------|
+| --- | --- | --- | --- | --- |
 | `<sha>` | | | | |
