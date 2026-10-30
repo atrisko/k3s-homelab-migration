@@ -69,7 +69,9 @@ k8s/
 
 **Negative & Trade-offs:**
 * **AWS never matches the production ingress path.** AWS uses ServiceLB instead of MetalLB and has no Caddy DMZ VM. The ingress path is validated only in RemoteLab.
-* **No successor for RemoteLab's tests is planned yet.** Once RemoteLab access ends, AWS takes over the tests before updates, but MetalLB L2, VLAN trunking, dual-stack/SLAAC and the Caddy → Traefik path cannot be tested there. A replacement environment for these tests must be decided before then.
+* **No successor for RemoteLab's tests.** Once RemoteLab access ends, AWS takes over the tests before updates, but MetalLB L2, VLAN trunking, dual-stack/SLAAC and the Caddy → Traefik path cannot be tested there. A regression in these components then shows up in production first and can take down ingress for all services. This is accepted for an outage of up to one day:
+  * Production follows a fixed release state and can be rolled back by a targeted playbook run over SSH, without a new commit and without touching K3s ([ADR-0011](0011-deployment-model.md)).
+  * A second Pi-hole instance on a separate system keeps LAN DNS available while the server is down.
 * **Higher AWS cost.** The full workload set needs a much larger instance than the current `t3.small`. The optional AWS Budget Alert (Phase 1) becomes mandatory.
 * **Test data is an open question.** Meaningful update and restore tests need realistic data. Which data may be stored in AWS (photos and documents are excluded by default) must be decided before the first restore test.
 * **Restructuring work.**
