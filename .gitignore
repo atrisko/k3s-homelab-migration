@@ -41,3 +41,6 @@ learning/
 
 # Dynamically generated inventory (Terraform):
 hosts.yaml
+
+# Scratch notes for undocumented validation runs
+docs/lauf-0-notizen.md
