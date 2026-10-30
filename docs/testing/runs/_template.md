@@ -15,3 +15,11 @@
 ## Deviations & Findings
 
 - `<ID>`: … → roadmap / issue link
+
+## Pre-run findings
+
+Defects fixed before this run. They do not show up as failures above.
+
+| Fix commit | Ref | Test ID | Finding | Refuted roadmap item |
+|------------|-----|---------|---------|----------------------|
+| `<sha>` | | | | |

@@ -65,8 +65,9 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
 ### AWS-01 · IMDSv1 requests are rejected
 
 - **Env:** aws · **Ref:** Phase 1
-- **Command:** `curl -s -o /dev/null -w '%{http_code}\n' http://169.254.169.254/latest/meta-data/`
+- **Command:** `curl -s --max-time 5 -o /dev/null -w '%{http_code}\n' http://169.254.169.254/latest/meta-data/`
 - **Pass:** output is `401`
+- **Note:** `000` means the metadata endpoint did not answer within 5 s (e.g. endpoint disabled or IMDSv2 hop limit). Without `--max-time`, `curl` would hang.
 
 ### AWS-02 · All attached EBS volumes are encrypted
 
