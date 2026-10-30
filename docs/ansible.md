@@ -213,6 +213,8 @@ Before configuring K3s, the role asserts that the host has its configured IPv6 U
   * The role refreshes mount facts and verifies that `k3s_storage_path` (default: `"{{ appdata_path | default('/mnt/appdata') }}"`) is actively mounted in `ansible_facts['mounts']`. If unmounted, execution halts immediately.
 * **Boot-Time Systemd Mount Guard (`k3s.service.d/02-storage.conf`):**
   * Deploys a systemd drop-in unit configured with `RequiresMountsFor={{ k3s_storage_path }}`. If the storage disk fails to mount after a host reboot, systemd blocks `k3s.service` from starting, preventing the local-path provisioner or K3s state from creating an empty cluster on the host's root disk.
+  * The same drop-in sets `BindsTo=` on the mount unit of `k3s_storage_path` (ADR-0009). `RequiresMountsFor=` alone stops K3s only when the mount unit is stopped by a job; `BindsTo=` also stops it when the mount disappears outside systemd (e.g. `umount -l`). A missing volume becomes a complete outage instead of K3s running on a detached filesystem.
+  * The mount unit name is derived on the node with `systemd-escape --path --suffix=mount` (registered as `k3s_storage_mount_unit`), so it follows the escaping rules of systemd for any path.
 
 ### 3. Declarative Configuration (`/etc/rancher/k3s/config.yaml`)
 

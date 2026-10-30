@@ -56,6 +56,12 @@
     group: root
     mode: '0755'
 
+- name: Derive systemd mount unit name for {{ k3s_storage_path }}
+  ansible.builtin.command: systemd-escape --path --suffix=mount {{ k3s_storage_path }}
+  register: k3s_storage_mount_unit
+  changed_when: false
+  check_mode: false
+
 - name: Write config file to safe-guard against k3s writing onto root disk
   ansible.builtin.copy:
     dest: /etc/systemd/system/k3s.service.d/02-storage.conf
@@ -65,6 +71,7 @@
     content: |
       [Unit]
       RequiresMountsFor={{ k3s_storage_path }}
+      BindsTo={{ k3s_storage_mount_unit.stdout }}
   notify: Restart k3s
 
 - name: Write K3s config.yaml for Dual-Stack and Storage

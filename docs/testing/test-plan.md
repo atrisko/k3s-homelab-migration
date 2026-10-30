@@ -192,9 +192,9 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
 
 ### STO-02 · Storage guard is loaded in the running systemd manager
 
-- **Env:** all · **Ref:** R2-1
-- **Command:** `systemctl show k3s.service -p RequiresMountsFor -p NeedDaemonReload`
-- **Pass:** `RequiresMountsFor=/mnt/appdata` and `NeedDaemonReload=no`
+- **Env:** all · **Ref:** R2-1, ADR-0009
+- **Command:** `systemctl show k3s.service -p RequiresMountsFor -p BindsTo -p NeedDaemonReload`
+- **Pass:** `RequiresMountsFor=/mnt/appdata`, `BindsTo=` contains `mnt-appdata.mount`, and `NeedDaemonReload=no`
 
 ### K3S-01 · Pinned K3s version is installed
 
@@ -394,9 +394,9 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
   }
   ```
 
-### STO-05 · Root disk stays write-protected when the mount disappears outside systemd
+### STO-05 · K3s stops and the root disk stays write-protected when the mount disappears outside systemd
 
-- **Env:** all · **Ref:** R2-1 (`chattr +i`)
+- **Env:** all · **Ref:** R2-1 (`chattr +i`), ADR-0009 (`BindsTo=`)
 - **Command:**
 
   ```bash
@@ -406,12 +406,13 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
     lsattr -d "${APPDATA:?}"                                  # precondition
     sudo touch "${APPDATA:?}"/guard-test
     ls -A "${APPDATA:?}"
+    timeout 60 bash -c 'while systemctl is-active -q k3s; do sleep 2; done'; systemctl is-active k3s
   }
   ```
 
-- **Pass:** precondition: `findmnt` exits with `1`, `lsattr` shows the `i` flag; `sudo touch` fails with `Operation not permitted`; `ls -A` prints nothing
-- **Note:** `sudo` is required. Without it, `touch` fails on regular permissions (`Permission denied`) and the flag is not tested. Record whether `k3s` stays active after the lazy unmount.
-- **Recovery:** if `guard-test` was created (fail), remove it first. Then `sudo mount "${APPDATA:?}"` (uses the fstab entry); start `k3s` if it is inactive (`sudo systemctl start k3s`). Then check:
+- **Pass:** precondition: `findmnt` exits with `1`, `lsattr` shows the `i` flag; `sudo touch` fails with `Operation not permitted`; `ls -A` prints nothing; `systemctl is-active k3s` returns `inactive`
+- **Note:** `sudo` is required. Without it, `touch` fails on regular permissions (`Permission denied`) and the flag is not tested. `BindsTo=` stops K3s when the mount unit becomes inactive for any reason, not only on a stop job (with `RequiresMountsFor=` alone, K3s stayed `active` in runs 0 and 1). The last command waits up to 60 s for the stop.
+- **Recovery:** if `guard-test` was created (fail), remove it first. Then `sudo mount "${APPDATA:?}"` (uses the fstab entry) and `sudo systemctl start k3s` (`BindsTo=` stops K3s but does not start it again). Then check:
 
   ```bash
   {
