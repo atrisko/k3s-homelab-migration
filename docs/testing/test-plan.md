@@ -247,6 +247,19 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
 - **Command:** `ip -6 addr show dev "${IF:?}" to "${ULA:?}/128" | grep -q inet6; echo $?`
 - **Pass:** exit code 0
 
+### NET-04 · SLAAC works under forwarding after reboot
+
+- **Env:** baremetal · **Ref:** ADR-0001 (decision 6), R2-4
+- **Command:**
+
+  ```bash
+  ip -6 addr show dev "${IF:?}" scope global dynamic | grep -q inet6; echo $?
+  ip -6 route show default | grep -q "dev ${IF:?}"; echo $?
+  ```
+
+- **Pass:** both print `0`: a SLAAC address (`dynamic`, i.e. with a lifetime from the router advertisement) and an IPv6 default route on the primary interface
+- **Note:** neither AWS nor the RemoteLab has IPv6 router advertisements, so this test exists only for bare metal. SYS-08 checks the setting (`accept_ra=2`), NET-04 its effect.
+
 ### SYS-07 · Hardening sysctls persist
 
 - **Env:** all · **Ref:** Phase 2

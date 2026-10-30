@@ -8,7 +8,7 @@
 The project runs on three environments, and their purposes have changed:
 
 * **AWS PoC (Phase 1):** Originally a Terraform exercise. It is now meant to be a full-stack staging environment: the complete setup with all 30+ services running, used before major updates.
-* **RemoteLab (Phase 4.5, ADR-0002):** A Hyper-V VM on a 16 GB host. It is available around the clock for now, but access ends in about a year. After leaving memory for the host and the control node, it cannot run the full workload set. It does sit in a real L2/L3 network with a router, SLAAC and LAN clients.
+* **RemoteLab (Phase 4.5, ADR-0002):** A Hyper-V VM on a 16 GB host. It is available around the clock for now, but access ends in about a year. After leaving memory for the host and the control node, it cannot run the full workload set. It does sit in a real L2/L3 network with an IPv4 router and LAN clients. The network has no IPv6 router (no router advertisements, verified 2026-10-30), so SLAAC and global IPv6 addresses cannot be tested there.
 * **Bare Metal (Phase 5+):** The production target. Tests here put the platform and, later, the migrated data at risk.
 
 The environments differ in capabilities, not just in sizing:
@@ -31,8 +31,8 @@ Without a clear separation, environment differences would end up as conditionals
 | Environment | Tests |
 | :--- | :--- |
 | **AWS** | Full workload set, update rehearsals (K3s, ArgoCD, application images), restore from backup, complete rebuild from scratch (`terraform destroy` → apply → playbook) |
-| **RemoteLab** | Real network and platform behaviour: MetalLB L2, dual-stack/SLAAC, Caddy → Traefik header propagation, reboot and detached-storage behaviour, idempotency |
-| **Bare Metal** | Acceptance only: tests that already passed in the environment responsible for them |
+| **RemoteLab** | Real network and platform behaviour: MetalLB L2, dual-stack with static ULA, Caddy → Traefik header propagation, reboot and detached-storage behaviour, idempotency |
+| **Bare Metal** | Acceptance: tests that already passed in the environment responsible for them. In addition, SLAAC and global IPv6 addresses, which no other environment can test |
 
 Every test case names the environment responsible for it. A milestone is passed when all its test cases have passed in their environment.
 
@@ -70,6 +70,7 @@ k8s/
 
 **Negative & Trade-offs:**
 
+* **SLAAC is tested only on bare metal.** Neither AWS nor the RemoteLab offers IPv6 router advertisements. Settings that affect SLAAC (e.g. `accept_ra`) can be checked everywhere, but their effect is first observable at bare-metal acceptance.
 * **AWS never matches the production ingress path.** AWS uses ServiceLB instead of MetalLB and has no Caddy DMZ VM. The ingress path is validated only in RemoteLab.
 * **No successor for RemoteLab's tests.** Once RemoteLab access ends, AWS takes over the tests before updates, but MetalLB L2, VLAN trunking, dual-stack/SLAAC and the Caddy → Traefik path cannot be tested there. A regression in these components then shows up in production first and can take down ingress for all services. This is accepted for an outage of up to one day:
   * Production follows a fixed release state and can be rolled back by a targeted playbook run over SSH, without a new commit and without touching K3s ([ADR-0011](0011-deployment-model.md)).

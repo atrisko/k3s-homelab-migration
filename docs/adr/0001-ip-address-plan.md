@@ -49,9 +49,12 @@ constraints shape the addressing scheme:
    with `auto <iface>` instead of `allow-hotplug <iface>` in ifupdown. AWS keeps
    DHCP, which is handled there by netplan and systemd-networkd.
    * On Debian 13, ifupdown runs **dhcpcd** for `inet dhcp`. dhcpcd takes over
-     router advertisements itself and sets `accept_ra=0` on the interface, so
-     after every reboot the node loses its SLAAC address and IPv6 default route
-     (run 1, SYS-08). Without `inet dhcp`, dhcpcd does not run.
+     router advertisements itself and sets `accept_ra=0` on the interface after
+     every reboot (run 1, SYS-08). With forwarding enabled, the kernel then
+     ignores router advertisements, which prevents SLAAC and the IPv6 default
+     route. The RemoteLab has no IPv6 router, so only `accept_ra=0` was
+     observed; the effect on SLAAC is verified on bare metal (NET-04). Without
+     `inet dhcp`, dhcpcd does not run.
    * With `allow-hotplug`, the interface is brought up by `ifup@<iface>.service`
      and not by `networking.service`, so `network-online.target` (and K3s
      behind it) does not wait for it. `auto` makes the dependency explicit.

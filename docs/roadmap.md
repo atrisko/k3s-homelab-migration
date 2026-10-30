@@ -91,8 +91,6 @@
 - [x] ADR-0002: Dedicated RemoteLab staging layer adopted
 - [x] Configure inventory `inventory/remotelab.yaml` & SCSI WWID storage addressing
 - [x] RemoteLab VM provisioned (Debian 13) and configured via `site.yaml`; a checkpoint of the fresh install allows clean bootstrap tests
-- [ ] Validate dual-stack behavior with real router/SLAAC + static ULA in home network
-- [ ] Verify 24-hour SLAAC stability under IPv6 forwarding (`accept_ra = 2` verification)
 - [ ] **Caddy $\rightarrow$ Traefik Ingress & Header Staging Test (ADR-0003):**
   - [ ] Test Caddy reverse proxy forwarding to Traefik LoadBalancer IP
   - [ ] Verify header propagation (`X-Forwarded-For`, `X-Real-IP`) & Traefik `trustedIPs` on test workload
@@ -131,6 +129,8 @@
 - [ ] Execute `os_base` and `k3s_install` roles on bare metal
 - [ ] Add bare-metal host to Ansible inventory (`inventory/production.yaml`)
 - [ ] Execute playbook against physical system (target: clean, running K3s base platform without production workloads)
+- [ ] **SLAAC under forwarding (NET-04):** The node obtains a global IPv6 address and an IPv6 default route via SLAAC with forwarding enabled, also after a reboot. Only testable here: the RemoteLab network has no IPv6 router
+- [ ] Verify 24-hour SLAAC stability under IPv6 forwarding
 
 ---
 
