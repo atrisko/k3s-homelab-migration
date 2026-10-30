@@ -8,7 +8,7 @@
 The project runs on three environments, and their purposes have changed:
 
 * **AWS PoC (Phase 1):** Originally a Terraform exercise. It is now meant to be a full-stack staging environment: the complete setup with all 30+ services running, used before major updates.
-* **RemoteLab (Phase 4.5, ADR-0002):** A Hyper-V VM on a 16 GB host. It is not permanently available, and after leaving memory for the host and the control node, it cannot run the full workload set. It does sit in a real L2/L3 network with a router, SLAAC and LAN clients.
+* **RemoteLab (Phase 4.5, ADR-0002):** A Hyper-V VM on a 16 GB host. It is available around the clock for now, but access ends in about a year. After leaving memory for the host and the control node, it cannot run the full workload set. It does sit in a real L2/L3 network with a router, SLAAC and LAN clients.
 * **Bare Metal (Phase 5+):** The production target. Tests here put the platform and, later, the migrated data at risk.
 
 The environments differ in capabilities, not just in sizing:
@@ -62,13 +62,14 @@ k8s/
 ## Consequences
 
 **Positive:**
-* Full-stack tests no longer depend on RemoteLab availability or its RAM limit.
+* Full-stack tests no longer depend on RemoteLab's RAM limit or its remaining lifetime.
 * Roles and base manifests stay environment-agnostic. Adding an environment means adding an inventory directory and an overlay, not touching roles.
 * Environment differences are visible in one place per layer (`inventory/<env>/`, `k8s/clusters/<env>/`) and can be reviewed as such.
 * Test results can be tied to an environment with a known capability set.
 
 **Negative & Trade-offs:**
 * **AWS never matches the production ingress path.** AWS uses ServiceLB instead of MetalLB and has no Caddy DMZ VM. The ingress path is validated only in RemoteLab.
+* **No successor for RemoteLab's tests is planned yet.** Once RemoteLab access ends, AWS takes over the tests before updates, but MetalLB L2, VLAN trunking, dual-stack/SLAAC and the Caddy → Traefik path cannot be tested there. A replacement environment for these tests must be decided before then.
 * **Higher AWS cost.** The full workload set needs a much larger instance than the current `t3.small`. The optional AWS Budget Alert (Phase 1) becomes mandatory.
 * **Test data is an open question.** Meaningful update and restore tests need realistic data. Which data may be stored in AWS (photos and documents are excluded by default) must be decided before the first restore test.
 * **Restructuring work.**
@@ -91,4 +92,4 @@ k8s/
 * **AWS-native load balancing (AWS Load Balancer Controller / NLB) on AWS:**
   * *Rejected for now:* Adds AWS-specific components and costs that exist only in staging. K3s ServiceLB is already part of K3s and enough to make Traefik reachable.
 * **Running the full workload set in RemoteLab:**
-  * *Rejected:* Not possible within 16 GB host RAM, and the environment is not permanently available.
+  * *Rejected:* Not possible within 16 GB host RAM, and the environment will no longer be available in about a year.
