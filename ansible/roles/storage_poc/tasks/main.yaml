@@ -8,7 +8,7 @@
       'data_disk_device' is undefined. Set it in the inventory (e.g. via persistent /dev/disk/by-id/... path)
       or via 'terraform -chdir=terraform/aws-poc output -raw data_disk_device'.
 
-- name: Create ext4 filesystem on the AWS EBS volume
+- name: Ensure {{ storage_filesystem_type }} filesystem exists on the data disk
   community.general.filesystem:
     fstype: "{{ storage_filesystem_type }}"
     dev: "{{ data_disk_device }}"

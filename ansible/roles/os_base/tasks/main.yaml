@@ -3,7 +3,7 @@
 - name: Install essential system tools
   ansible.builtin.apt:
     name: "{{ os_base_packages }}"
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600 # Prevents running 'apt-get update' again if already run within the last hour
     state: present # Ensures packages exist; does nothing if they are already installed
 
@@ -63,7 +63,7 @@
   ansible.builtin.systemd:
     name: "{{ item }}"
     state: started
-    enabled: yes
+    enabled: true
   loop:
     - apt-daily.timer
     - apt-daily-upgrade.timer
@@ -183,7 +183,7 @@
     group: root
     mode: '0644'
     validate: '/usr/sbin/sshd -t -f %s'
-  notify: restart ssh
+  notify: Restart ssh
 
 - name: Configure hardened sysctl parameters for Kubernetes host
   ansible.builtin.copy:
@@ -192,7 +192,7 @@
     owner: root
     group: root
     mode: '0644'
-  notify: reload sysctl
+  notify: Reload sysctl
 
 - name: Ensure systemd-journald drop-in directory exists
   ansible.builtin.file:
@@ -215,7 +215,7 @@
     owner: root
     group: root
     mode: '0644'
-  notify: restart systemd-journald
+  notify: Restart systemd-journald
 
 - name: Blacklist legacy and unused kernel modules
   ansible.builtin.copy:
@@ -229,7 +229,7 @@
   ansible.builtin.systemd:
     name: systemd-timesyncd
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Configure hardened sudo defaults
   ansible.builtin.copy:
@@ -254,16 +254,3 @@
     group: root
     mode: '0440'
     validate: '/usr/sbin/visudo -cf %s'
-
-
-
-
-
-
-
-
-
-
-
-
-

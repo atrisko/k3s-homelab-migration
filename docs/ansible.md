@@ -124,7 +124,7 @@ The `os_base` role establishes baseline hygiene, installs container storage prer
 * **Session Hygiene:**
   * `ClientAliveInterval 300` and `ClientAliveCountMax 2`: Terminates orphaned sessions after 10 minutes of inactivity.
   * `X11Forwarding no` and `AllowAgentForwarding no`: Prevents graphical forwarding and agent socket hijacking.
-* Triggers handler `restart ssh` on changes.
+* Triggers handler `Restart ssh` on changes.
 
 ### Kernel Sysctl Hardening & Tuning
 
@@ -145,7 +145,7 @@ The `os_base` role establishes baseline hygiene, installs container storage prer
 
 * Deployed to `/etc/systemd/journald.conf.d/00-limits.conf`.
 * Configurable via role defaults: `os_systemd_max_usage: "1G"`, `os_systemd_max_file_size: "100M"`, `os_systemd_max_retention_sec: "1month"`.
-* Prevents the host root filesystem from filling with logs, mitigating Kubernetes `DiskPressure` node taints and pod evictions. Triggers handler `restart systemd-journald`.
+* Prevents the host root filesystem from filling with logs, mitigating Kubernetes `DiskPressure` node taints and pod evictions. Triggers handler `Restart systemd-journald`.
 
 ### Kernel Module Blacklisting
 

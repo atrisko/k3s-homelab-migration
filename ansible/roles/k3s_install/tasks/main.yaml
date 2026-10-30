@@ -48,7 +48,7 @@
       - ansible_facts['mounts'] | selectattr('mount', 'equalto', k3s_storage_path) | list | length > 0
     fail_msg: "{{ k3s_storage_path }} is not mounted! K3s local-path provisioner would write directly to the root disk."
 
-- name: ensure config directory for k3s exists
+- name: Ensure config directory for k3s exists
   ansible.builtin.file:
     path: /etc/systemd/system/k3s.service.d
     state: directory
@@ -140,7 +140,7 @@
   ansible.builtin.systemd:
     name: k3s
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Wait for ArgoCD Application CRD to be established
   ansible.builtin.command:
