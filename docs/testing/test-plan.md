@@ -267,10 +267,11 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
   ```bash
   systemctl is-enabled systemd-timesyncd apt-daily.timer apt-daily-upgrade.timer \
     && systemctl is-active systemd-timesyncd apt-daily.timer apt-daily-upgrade.timer \
-    && [ "$(timedatectl show -p NTPSynchronized --value)" = yes ]; echo $?
+    && timeout 300 bash -c 'until [ "$(timedatectl show -p NTPSynchronized --value)" = yes ]; do sleep 5; done'; echo $?
   ```
 
 - **Pass:** exit code 0
+- **Note:** right after boot, the first NTP sync can take a while; the command waits up to 300 s for it. Exit code `124` means the clock was not synchronized within that time.
 
 ### STO-03 · Appdata mount persists via fstab
 
@@ -303,10 +304,13 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
 
   ```bash
   k -n default rollout status deploy/caddy-test --timeout=180s \
-    && curl -s -o /dev/null -w '%{http_code}\n' "http://$(k -n default get svc caddy-test-svc -o jsonpath='{.spec.clusterIP}')"
+    && IP=$(k -n default get svc caddy-test-svc -o jsonpath='{.spec.clusterIP}') \
+    && timeout 120 bash -c "until curl -sf -o /dev/null http://$IP; do sleep 5; done" \
+    && curl -s -o /dev/null -w '%{http_code}\n' "http://$IP"
   ```
 
 - **Pass:** rollout complete and output is `200`
+- **Note:** shortly after boot, `rollout status` can report complete before the ClusterIP is reachable (run 1: `000` once, `200` 44 s later). The command retries for up to 120 s; exit code `124` without output means the service never answered.
 
 ### K3S-06 · Pods receive dual-stack addresses
 
@@ -319,7 +323,7 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
 - **Env:** all · **Ref:** Phase 2/3 · *(control node)*
 - **Command:** `ansible-playbook -i inventory/<env>.yaml site.yaml --diff` (from `ansible/`)
 - **Pass:** PLAY RECAP shows `changed=0 failed=0`; every `changed` task is recorded by name as deviation
-- **Note:** runs **last** in Block 4. The playbook sets values at runtime and would mask persistence failures in the tests above. A failed persistence test in Block 4 is expected to show up here as `changed` (e.g. a failed SYS-08 as `changed` on "Set accept_ra at runtime"). Record it as a consequence of that test, not as a separate idempotency defect.
+- **Note:** runs **last** in Block 4. The playbook sets values at runtime and would mask persistence failures in the tests above. A failed persistence test in Block 4 is expected to show up here as `changed` (e.g. a failed SYS-08 as `changed` on "Set accept_ra at runtime"). The result is still `fail`, because the pass criterion is not met. The note names the persistence test as the cause, e.g. "consequence of SYS-08, not a separate idempotency defect".
 - **Note:** `--diff` shows changes only for modules with diff support (e.g. `copy`, `template`, `lineinfile`). Modules such as `sysctl`, `command` or `systemd` report `changed` without a diff; check the affected value directly on the node.
 
 ---
@@ -340,7 +344,9 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
 
   ```bash
   k -n default rollout status deploy/caddy-test --timeout=180s \
-    && curl -s -o /dev/null -w '%{http_code}\n' "http://$(k -n default get svc caddy-test-svc -o jsonpath='{.spec.clusterIP}')"
+    && IP=$(k -n default get svc caddy-test-svc -o jsonpath='{.spec.clusterIP}') \
+    && timeout 120 bash -c "until curl -sf -o /dev/null http://$IP; do sleep 5; done" \
+    && curl -s -o /dev/null -w '%{http_code}\n' "http://$IP"
   ```
 
 - **Recovery:** if not recreated, trigger a manual sync:
@@ -369,7 +375,9 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
     [ "$(findmnt -n -o SOURCE --mountpoint "${APPDATA:?}")" = "$(readlink -f "${DISK:?}")" ]; echo $?   # STO-01: 0
     systemctl is-active k3s && k wait --for=condition=Ready node --all --timeout=180s; echo $?        # K3S-05: 0
     k -n default rollout status deploy/caddy-test --timeout=180s \
-      && curl -s -o /dev/null -w '%{http_code}\n' "http://$(k -n default get svc caddy-test-svc -o jsonpath='{.spec.clusterIP}')"  # GITOPS-02: 200
+      && IP=$(k -n default get svc caddy-test-svc -o jsonpath='{.spec.clusterIP}') \
+      && timeout 120 bash -c "until curl -sf -o /dev/null http://$IP; do sleep 5; done" \
+      && curl -s -o /dev/null -w '%{http_code}\n' "http://$IP"  # GITOPS-02: 200
   }
   ```
 
@@ -397,7 +405,9 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
     [ "$(findmnt -n -o SOURCE --mountpoint "${APPDATA:?}")" = "$(readlink -f "${DISK:?}")" ]; echo $?   # STO-01: 0
     systemctl is-active k3s && k wait --for=condition=Ready node --all --timeout=180s; echo $?        # K3S-05: 0
     k -n default rollout status deploy/caddy-test --timeout=180s \
-      && curl -s -o /dev/null -w '%{http_code}\n' "http://$(k -n default get svc caddy-test-svc -o jsonpath='{.spec.clusterIP}')"  # GITOPS-02: 200
+      && IP=$(k -n default get svc caddy-test-svc -o jsonpath='{.spec.clusterIP}') \
+      && timeout 120 bash -c "until curl -sf -o /dev/null http://$IP; do sleep 5; done" \
+      && curl -s -o /dev/null -w '%{http_code}\n' "http://$IP"  # GITOPS-02: 200
   }
   ```
 
@@ -432,7 +442,9 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
     [ "$(findmnt -n -o SOURCE --mountpoint "${APPDATA:?}")" = "$(readlink -f "${DISK:?}")" ]; echo $?   # STO-01: 0
     systemctl is-active k3s && k wait --for=condition=Ready node --all --timeout=180s; echo $?        # K3S-05: 0
     k -n default rollout status deploy/caddy-test --timeout=180s \
-      && curl -s -o /dev/null -w '%{http_code}\n' "http://$(k -n default get svc caddy-test-svc -o jsonpath='{.spec.clusterIP}')"  # GITOPS-02: 200
+      && IP=$(k -n default get svc caddy-test-svc -o jsonpath='{.spec.clusterIP}') \
+      && timeout 120 bash -c "until curl -sf -o /dev/null http://$IP; do sleep 5; done" \
+      && curl -s -o /dev/null -w '%{http_code}\n' "http://$IP"  # GITOPS-02: 200
   }
   ```
 
