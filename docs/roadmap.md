@@ -192,17 +192,17 @@
 *Goal: Retain multi-terabyte bulk data disks in-place, migrate application states, and establish SnapRAID parity.*
 
 - [ ] **Phase 8.1: In-Place Drive Attachment & Initial Read-Only Mount:**
-  - [ ] Physically attach existing Unraid XFS/Btrfs data drives to the bare-metal host
-  - [ ] Mount data disks strictly read-only initially (`ro,norecovery`) via persistent `/dev/disk/by-id/` symlinks
+  - [ ] Reconnect the existing Unraid data drives (LUKS-encrypted XFS) after the rebuild
+  - [ ] Unlock data disks read-only with the passphrase (`cryptsetup open --readonly`) and mount them strictly read-only (`ro,norecovery`) via persistent `/dev/disk/by-id/` symlinks
   - [ ] Configure `mergerfs` pool over read-only data mounts for pooled read access
   - [ ] Preserve Unraid parity drive completely untouched (ensuring zero-risk rollback window)
 - [ ] **Phase 8.2: Application State Migration & Workload Launch:**
-  - [ ] Stop legacy Unraid containers to ensure consistent database states
-  - [ ] Rsync application states (`appdata`) from Unraid NVMe to new Tier-2 K3s NVMe storage (PVCs)
-  - [ ] Verify file permissions and ownership (UID/GID) on target PVC storage
+  - [ ] Restore appdata from the off-site Borg repository into Tier-2 PVCs, service by service in the restore order from Phase 7.5; PostgreSQL from the `pg_dumpall`
+  - [ ] Verify file permissions and ownership (UID/GID, `ls -ln`) on target PVC storage
   - [ ] Launch production workloads via ArgoCD (e.g. Nextcloud, Jellyfin with Intel QuickSync)
   - [ ] Validate application performance and data read access against the read-only mergerfs pool
 - [ ] **Phase 8.3: Parity Cutover & Finalization:**
+  - [ ] Enroll a keyfile on Tier 1 as an additional LUKS keyslot and unlock the data disks at boot via `/etc/crypttab` (ADR-0008); the passphrase stays valid. Done here, not in 8.1, because it writes to the LUKS headers and would touch the disks during the rollback window
   - [ ] Remount data disks read-write in `/etc/fstab`
   - [ ] Format former Unraid parity disk and configure as dedicated SnapRAID parity drive
   - [ ] Compute initial SnapRAID parity (`snapraid sync`) – concluding the parity rollback window
