@@ -44,6 +44,7 @@
 *Goal: Install container orchestration runtime and bootstrap initial services.*
 
 - [ ] **K3s runtime (dual-stack, ADR-0001, R2-3):** K3s runs as an enabled systemd service with dual-stack node, pod and service networking. Node IPs are declared explicitly instead of being inferred from DHCP. Provisioning aborts before installation if the ULA or the appdata mount is missing.
+- [ ] **Clean K3s start after boot (K3S-07):** K3s reaches `active` after a reboot without being restarted by systemd. Known issue: K3s exits once on about every second boot and recovers within about 20 s; accepted, see [Issue 0001](issues/0001-k3s-boot-crash-netlink.md).
 - [x] **Reproducible installation (R2-6):** The K3s installer is pinned to the declared version and integrity-verified before execution. Repeated playbook runs, including after a reboot, report no changes; an upgrade only happens when the declared version differs. Configuration changes take effect without manual restarts.
 - [ ] **Persistent storage (R2-1):** Persistent volumes land on the dedicated appdata volume, never on the root disk. K3s does not run without the appdata volume, nothing reaches the root disk while it is missing, and a corrupted appdata filesystem keeps K3s down instead of starting on damaged data.
 - [x] **GitOps bootstrap (R2-2, R2-9):** Argo CD is installed declaratively at a pinned, supported 3.x chart version and continuously syncs the smoke-test workload (Caddy) from the public repository, including self-heal. Deleting the root application never cascades into workload or PVC deletion.
@@ -98,7 +99,7 @@
   - [ ] Test passwordless sudo for Ansible user (`/etc/sudoers.d/10-ansible`)
 - [ ] Conduct idempotency & reboot audit:
   - [x] Second playbook run reports `changed=0`
-  - [ ] K3s survives host reboot cleanly
+  - [ ] K3s survives host reboot cleanly (K3S-07; open as known issue, see [Issue 0001](issues/0001-k3s-boot-crash-netlink.md))
   - [x] Detached storage reboot test: verify K3s service fails safely without polluting root disk
 
 ---

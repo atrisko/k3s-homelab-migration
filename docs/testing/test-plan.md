@@ -301,17 +301,16 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
 ### K3S-05 · K3s is up and the node is Ready
 
 - **Env:** all · **Ref:** Phase 3
-- **Command:**
+- **Command:** `timeout 180 bash -c 'until systemctl is-active -q k3s; do sleep 2; done' && k wait --for=condition=Ready node --all --timeout=180s; echo $?`
+- **Pass:** exit code `0`
+- **Note:** `systemctl is-active` does not wait, so the command waits up to 180 s for K3s to become `active` (exit `124` on timeout); a slow start passes. Whether K3s got there without a crash is checked separately by K3S-07.
 
-  ```bash
-  {
-    timeout 180 bash -c 'until systemctl is-active -q k3s; do sleep 2; done' && k wait --for=condition=Ready node --all --timeout=180s; echo $?   # 0
-    systemctl show k3s -p NRestarts --value                                                                                               # 0
-  }
-  ```
+### K3S-07 · K3s starts without a restart after boot
 
-- **Pass:** exit code `0`, `NRestarts` = `0`
-- **Note:** `systemctl is-active` does not wait, so the first line waits up to 180 s for K3s to become `active` (exit `124` on timeout); a slow start passes. `NRestarts` counts the automatic restarts by systemd since the last boot or explicit start. A value above `0` means K3s crashed and was restarted, which the wait alone would hide (run 2: one crash after boot, `failed to get list of links`). The `k` alias contains `sudo`, hence the `{ … }` group. The recovery checks in STO-04 and STO-05 run only the wait, until it is confirmed that an explicit `systemctl start` resets `NRestarts`; STO-06 follows a boot and checks both.
+- **Env:** all · **Ref:** Phase 3, [Issue 0001](../issues/0001-k3s-boot-crash-netlink.md)
+- **Command:** `systemctl show k3s -p NRestarts --value`
+- **Pass:** output is `0`
+- **Note:** `NRestarts` counts the automatic restarts by systemd since the last boot or explicit start. A value above `0` means K3s crashed and was restarted, which the wait in K3S-05 hides. Run it right after K3S-05, so the counter covers exactly the boot from Block 3. Known to fail on about every second boot (Issue 0001, accepted). The recovery checks in STO-04 and STO-05 skip K3S-07 until it is confirmed that an explicit `systemctl start` resets `NRestarts`; STO-06 follows a boot and includes it.
 
 ### GITOPS-01 · Root application is Synced and Healthy
 
@@ -464,7 +463,7 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
   {
     [ "$(findmnt -n -o SOURCE --mountpoint "${APPDATA:?}")" = "$(readlink -f "${DISK:?}")" ]; echo $?   # STO-01: 0
     timeout 180 bash -c 'until systemctl is-active -q k3s; do sleep 2; done' && k wait --for=condition=Ready node --all --timeout=180s; echo $?   # K3S-05: 0
-    systemctl show k3s -p NRestarts --value                                                                                               # K3S-05: 0
+    systemctl show k3s -p NRestarts --value                                                                                               # K3S-07: 0
     k -n default rollout status deploy/caddy-test --timeout=180s \
       && IP=$(k -n default get svc caddy-test-svc -o jsonpath='{.spec.clusterIP}') \
       && timeout 120 bash -c "until curl -sf -o /dev/null http://$IP; do sleep 5; done" \
