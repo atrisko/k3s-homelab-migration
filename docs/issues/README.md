@@ -11,7 +11,7 @@ This folder tracks defects and known issues found during testing: **what** was o
 ## Statuses
 
 * `Open`: Not resolved. An open issue may be accepted as a known issue; the file then states the conditions for re-evaluation.
-* `Resolved`: Fixed and verified in a documented run. The file names the fixing commit and the run.
+* `Resolved`: Fixed and verified in a documented run. The file names the fixing commit and the run. An issue that occurs intermittently defines its own verification criterion (e.g. a number of consecutive clean boots), because a single passing run does not prove a fix.
 * `Won't fix`: Closed without a fix. The file states why.
 
 ## Index

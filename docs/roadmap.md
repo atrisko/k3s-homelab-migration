@@ -2,7 +2,7 @@
 
 > **Status:** Phase 3 (K3s Bootstrap & Runtime) · State: October 2026  
 > **References:** [README.md](../README.md) · [docs/adr/](adr/) · [docs/reviews/](reviews/) · [docs/testing/](testing/)  
-> **Checkmarks** mean *verified*: an item is checked once its test cases have passed in a documented run ([docs/testing/runs/](testing/runs/)). Items whose tests failed are unchecked until a later run passes.
+> **Checkmarks** mean *verified*: an item is checked once its test cases have passed in a documented run ([docs/testing/runs/](testing/runs/)). Items whose tests failed are unchecked until a later run passes. Items that reference an open issue ([docs/issues/](issues/)) stay unchecked until the issue is resolved, even if their tests pass in a run.
 
 ---
 

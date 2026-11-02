@@ -92,7 +92,11 @@ No matching upstream issue found in `k3s-io/k3s` or `cloudnativelabs/kube-router
 
 ## Decision
 
-Accepted as a known issue. K3S-07 (no restart after boot) stays failing and its roadmap item stays unchecked until this is resolved.
+Accepted as a known issue. K3S-07 (no restart after boot) fails on about every second boot, and its roadmap items stay unchecked until this is resolved.
+
+## Verification
+
+A single passing K3S-07 does not prove a fix (it passed by chance in [run 2026-11-02](../testing/runs/2026-11-02-remotelab.md)). This issue counts as resolved after **10 consecutive clean boots** (`nrestarts=0 netlink=0`) with the measurement script above, recorded as a documented run. At the measured rate of about 50 %, 10 clean boots in a row without a real fix have a probability of about 0.1 %.
 
 ## Re-evaluate when
 
