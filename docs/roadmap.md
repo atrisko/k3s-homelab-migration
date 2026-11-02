@@ -174,15 +174,16 @@
 
 ## 🚧 Phase 7.5: Pre-Migration Gate & Resilience Verification
 
-*Goal: Prove system resilience and recovery procedures before migrating Unraid data.*
+*Goal: Decide whether the hardware may be touched. The bare-metal host replaces the Unraid server on the same hardware, so there is no parallel operation: everything that does not need the hardware is proven on the RemoteLab or AWS first, and the rebuild in Phase 5 starts only after this gate.*
 
-- [ ] **3-2-1 Backup for Irreplaceable Data:** External backup of photos, documents, appdata, and Unraid flash drive
-- [ ] Run SMART extended self-tests on all disks & generate media inventory file (`find ... > media-inventory.txt`)
-- [ ] **App-by-App Migration Plan:** Migrate services sequentially instead of big-bang transition
-- [ ] **Backup Restore Test:** Restore a test application including persistent volume data from backup
-- [ ] **Storage Failure Test:** Simulate practical SnapRAID data recovery on test data
-- [ ] **Migration Rehearsal:** Fully migrate a single, non-critical application from Unraid to K3s
-- [ ] **Rollback Test:** Simulate migration failure → restart previous Unraid service successfully
+- [ ] **3-2-1 Backup for Irreplaceable Data:** Photos, documents, appdata (including a `pg_dumpall` of the shared PostgreSQL) and the Unraid flash drive are backed up off-site in an encrypted Borg repository on the Hetzner Storage Box; key export and passphrase are stored in 1Password. A final incremental backup runs with all containers stopped right before the hardware is touched.
+- [ ] **Disk health & media inventory:** SMART extended self-tests pass on all disks, run under Unraid before the rebuild, and a media inventory file exists (`find ... > media-inventory.txt`).
+- [ ] **Restore order:** All services go down together. A documented order defines how they come back on bare metal, with the shared PostgreSQL before its dependent services.
+- [ ] **Backup restore test:** Covered by the restore rehearsal in Phase 4.5.
+- [ ] **Migration rehearsal:** The services to be migrated are deployed via GitOps and start with restored data: non-sensitive services on the RemoteLab, services with sensitive data (Paperless, Nextcloud) on AWS only. Hardware-bound services (Quick Sync transcoding, CoolerControl) are excluded.
+- [ ] **Full-load test (AWS):** All services run together on one node with realistic data. Total memory stays well below the 64 GB of the bare-metal host, and the per-service measurements define resource requests and limits.
+- [ ] **Storage failure procedure:** The SnapRAID recovery (`snapraid fix`) is rehearsed on the RemoteLab with small virtual disks; the test on the real disks follows in Phase 8.
+- [ ] **Rollback path:** The way back to Unraid works. The Tier-1 SATA SSD (on the planned additional SATA controller) is installed and Debian is installed onto it with the array disks and the Unraid flash drive disconnected; the host then boots Unraid again from the flash drive with array and cache detected. A runbook covers wiping the NVMe (`wipefs`), recreating the Unraid cache pool, restoring appdata with Borg under Unraid, and restoring containers via Community Apps ("Previous Apps") and the stack repository.
 
 ---
 
