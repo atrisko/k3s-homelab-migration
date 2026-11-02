@@ -101,6 +101,7 @@
   - [x] Second playbook run reports `changed=0`
   - [ ] K3s survives host reboot cleanly (K3S-07; open as known issue, see [Issue 0001](issues/0001-k3s-boot-crash-netlink.md))
   - [x] Detached storage reboot test: verify K3s service fails safely without polluting root disk
+- [ ] **Restore rehearsal:** A non-sensitive service (Tandoor) is restored on the RemoteLab from the off-site Borg repository, using only the key and passphrase from 1Password: appdata into a PVC, database from `pg_dumpall`. File ownership matches the original (`ls -ln`) and the service starts with its data.
 
 ---
 
