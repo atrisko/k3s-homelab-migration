@@ -32,7 +32,7 @@
 
 - [x] **Configuration as code:** All node configuration is applied from this repository by a single playbook (`site.yaml`). The target environment is selected via inventory, role parameters are overridable per inventory, and required collections are declared in `requirements.yaml`.
 - [x] **AWS connectivity:** Ansible reaches the AWS node through the Terraform-generated SSH config without manual setup.
-- [ ] **Hardened base system (ADR-0004, ADR-0005):** SSH accepts key-based logins for the automation user only. Kernel parameters enforce anti-spoofing (loose-mode `rp_filter` for CNI compatibility), disable redirects and restrict kernel information leaks; uncommon filesystems and network protocols cannot be loaded. The journal is size-capped against Kubernetes DiskPressure, time is NTP-synchronized, security updates are installed automatically, and iSCSI/NFS client tooling is present.
+- [x] **Hardened base system (ADR-0004, ADR-0005):** SSH accepts key-based logins for the automation user only. Kernel parameters enforce anti-spoofing (loose-mode `rp_filter` for CNI compatibility), disable redirects and restrict kernel information leaks; uncommon filesystems and network protocols cannot be loaded. The journal is size-capped against Kubernetes DiskPressure, time is NTP-synchronized, security updates are installed automatically, and iSCSI/NFS client tooling is present.
 - [x] **Non-interactive automation:** After the initial run, the automation user executes privileged tasks without a password prompt; no plaintext passwords are stored.
 - [x] **Persistent IPv6 ULA (ADR-0001):** The static ULA is active immediately after provisioning, without network interruption, and persists across reboots.
 - [x] **Appdata volume:** The data volume is mounted at the appdata path and identified by a stable device ID, independent of kernel device naming. The node still boots if the disk is missing; provisioning aborts if no data device is declared.
@@ -43,9 +43,9 @@
 
 *Goal: Install container orchestration runtime and bootstrap initial services.*
 
-- [x] **K3s runtime (dual-stack, ADR-0001, R2-3):** K3s runs as an enabled systemd service with dual-stack node, pod and service networking. Node IPs are declared explicitly instead of being inferred from DHCP. Provisioning aborts before installation if the ULA or the appdata mount is missing.
-- [ ] **Reproducible installation (R2-6):** The K3s installer is pinned to the declared version and integrity-verified before execution. Repeated playbook runs, including after a reboot, report no changes; an upgrade only happens when the declared version differs. Configuration changes take effect without manual restarts.
-- [x] **Persistent storage (R2-1):** Persistent volumes land on the dedicated appdata volume, never on the root disk. K3s does not run without the appdata volume, nothing reaches the root disk while it is missing, and a corrupted appdata filesystem keeps K3s down instead of starting on damaged data.
+- [ ] **K3s runtime (dual-stack, ADR-0001, R2-3):** K3s runs as an enabled systemd service with dual-stack node, pod and service networking. Node IPs are declared explicitly instead of being inferred from DHCP. Provisioning aborts before installation if the ULA or the appdata mount is missing.
+- [x] **Reproducible installation (R2-6):** The K3s installer is pinned to the declared version and integrity-verified before execution. Repeated playbook runs, including after a reboot, report no changes; an upgrade only happens when the declared version differs. Configuration changes take effect without manual restarts.
+- [ ] **Persistent storage (R2-1):** Persistent volumes land on the dedicated appdata volume, never on the root disk. K3s does not run without the appdata volume, nothing reaches the root disk while it is missing, and a corrupted appdata filesystem keeps K3s down instead of starting on damaged data.
 - [x] **GitOps bootstrap (R2-2, R2-9):** Argo CD is installed declaratively at a pinned, supported 3.x chart version and continuously syncs the smoke-test workload (Caddy) from the public repository, including self-heal. Deleting the root application never cascades into workload or PVC deletion.
 - [x] **Remote API access (ADR-0007):** The Kubernetes API is reachable only from `admin_cidr` or via SSH port forwarding; additional TLS SANs can be declared per environment.
 - [ ] **IPv6 under forwarding (R2-4, R2-5):** The node keeps its static ULA and its SLAAC addresses across reboots while IPv6 forwarding is enabled. Exactly one network stack (ifupdown or netplan) carries the ULA configuration; provisioning fails fast if neither is active.
@@ -96,9 +96,9 @@
   - [ ] Verify header propagation (`X-Forwarded-For`, `X-Real-IP`) & Traefik `trustedIPs` on test workload
   - [ ] Validate MetalLB L2-AddressPool in local test subnet
   - [ ] Test passwordless sudo for Ansible user (`/etc/sudoers.d/10-ansible`)
-- [x] Conduct idempotency & reboot audit:
+- [ ] Conduct idempotency & reboot audit:
   - [x] Second playbook run reports `changed=0`
-  - [x] K3s survives host reboot cleanly
+  - [ ] K3s survives host reboot cleanly
   - [x] Detached storage reboot test: verify K3s service fails safely without polluting root disk
 
 ---
