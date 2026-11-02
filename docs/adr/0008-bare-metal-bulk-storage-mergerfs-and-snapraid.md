@@ -2,6 +2,7 @@
 
 * **Status:** Proposed
 * **Date:** 2026-10-20
+* **Amended:** 2026-11-02 (decision 1: LUKS unlocking via keyfile)
 
 ## Context
 
@@ -30,7 +31,9 @@ Selecting the underlying storage architecture for **Tier 3 (Bulk Storage)** is c
 We adopt a decoupled storage architecture combining **`mergerfs`** (union filesystem) and **`SnapRAID`** (snapshot parity) for the Bare-Metal Tier 3 bulk storage pool:
 
 1. **Native Per-Disk Mounts:**  
-   Data disks are mounted directly as individual native filesystems (e.g., `/mnt/disk1`, `/mnt/disk2`, ...) using persistent `/dev/disk/by-id/...` device paths in `/etc/fstab`. If LUKS encryption is used, disks are mapped via `/etc/crypttab` prior to mounting.
+   Data disks are mounted directly as individual native filesystems (e.g., `/mnt/disk1`, `/mnt/disk2`, ...) using persistent `/dev/disk/by-id/...` device paths in `/etc/fstab`. The existing Unraid data disks are LUKS-encrypted and stay encrypted. They are mapped via `/etc/crypttab` prior to mounting and unlocked at boot with a keyfile stored on Tier 1 (mode `0400`, owned by root), enrolled as an additional keyslot. The original passphrase stays valid as a second keyslot and is kept in 1Password.
+   * **Threat model:** The encryption protects a single disk that leaves the house (warranty return, resale, disposal of a failed drive that can no longer be wiped). Theft of the whole server is out of scope.
+   * **Unattended unlocking** is required because security updates reboot the host automatically in the 03:00 window (ADR-0004); the bulk pool must be available again without operator interaction.
 2. **Unified Namespace via `mergerfs`:**  
    All individual data disks are unified into a single logical mount point (`/mnt/storage`) using `mergerfs`.
    * **Creation Policy:** Configured with `category.create=mfs` (most free space) or `epmfs` (existing path, most free space) to balance capacity distribution across physical disks transparently.
@@ -58,6 +61,8 @@ We adopt a decoupled storage architecture combining **`mergerfs`** (union filesy
 * **FUSE Filesystem Overhead:** `mergerfs` runs in userspace, incurring minor CPU/syscall overhead compared to kernel-native VFS. (Negligible on modern multi-core x86_64 CPUs serving gigabit/multi-gigabit network streams).
 * **No Real-Time Bitrot Auto-Healing:** Unlike ZFS, bitrot is detected during scheduled `snapraid scrub` runs rather than on every inline read.
 * **File Size Constraint:** A single file cannot span across multiple disks; no single file can exceed the free capacity of an individual physical disk.
+* **Stolen Server Is Readable:** With the keyfile on Tier 1, anyone holding the complete server can unlock the data disks. Accepted per the threat model in decision 1.
+* **Keyfile Loss Is Not Data Loss:** If Tier 1 fails or is reinstalled, the keyfile is gone; the disks are unlocked with the passphrase from 1Password and a new keyfile is enrolled.
 
 ## Alternatives considered
 
@@ -75,5 +80,9 @@ We adopt a decoupled storage architecture combining **`mergerfs`** (union filesy
   Rejected due to its proprietary licensing model, custom Slackware distribution running out of RAM from a USB stick, and fundamental friction with standard Infrastructure-as-Code (Terraform, Ansible Day-1 provisioning) and K3s cluster architectures.
 * **Dedicated Storage Appliances (TrueNAS SCALE / CORE):**  
   Rejected because introducing a separate storage VM with PCIe/HBA passthrough violates our single-node bare-metal architecture, adds unnecessary hypervisor complexity, and inherits the reformatting constraints of ZFS.
+* **LUKS unlocking alternatives:**
+  1. *Passphrase on every boot:* Rejected because every automatic reboot (ADR-0004) would leave the bulk pool locked until an operator enters the passphrase.
+  2. *TPM2 (`systemd-cryptenroll`):* Rejected because it binds the disks to the mainboard without adding protection for the chosen threat model; a board failure would fall back to the passphrase anyway.
+  3. *Network-bound unlocking (Clevis/Tang):* Rejected because it protects against theft of the whole server, which is out of scope, at the cost of an additional always-on service.
 * **Distributed / Cloud-Native Storage (Longhorn, Rook-Ceph):**  
   Rejected because distributed block replication engines are designed for multi-node clusters and introduce unacceptable CPU/RAM/IOPS overhead on a single-node homelab machine for multi-terabyte bulk storage.
