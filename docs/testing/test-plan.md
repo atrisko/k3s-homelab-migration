@@ -310,7 +310,7 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
 - **Env:** all · **Ref:** Phase 3, [Issue 0001](../issues/0001-k3s-boot-crash-netlink.md)
 - **Command:** `systemctl show k3s -p NRestarts --value`
 - **Pass:** output is `0`
-- **Note:** `NRestarts` counts the automatic restarts by systemd since the last boot or explicit start. A value above `0` means K3s crashed and was restarted, which the wait in K3S-05 hides. Run it right after K3S-05, so the counter covers exactly the boot from Block 3. Known to fail on about every second boot (Issue 0001, accepted). The recovery checks in STO-04 and STO-05 skip K3S-07 until it is confirmed that an explicit `systemctl start` resets `NRestarts`; STO-06 follows a boot and includes it.
+- **Note:** `NRestarts` counts the automatic restarts by systemd since the last boot or explicit start. A value above `0` means K3s crashed and was restarted, which the wait in K3S-05 hides. Run it right after K3S-05, so the counter covers exactly the boot from Block 3. Known to fail on about every second boot (Issue 0001, accepted). The man page and NEWS only document the increase; the reset on an explicit start was verified ad hoc on 2026-11-02 with systemd 257 (`1` before, `0` after `systemctl stop` and `start`). The recovery checks in STO-04 to STO-06 therefore include K3S-07.
 
 ### GITOPS-01 · Root application is Synced and Healthy
 
@@ -395,6 +395,7 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
   {
     [ "$(findmnt -n -o SOURCE --mountpoint "${APPDATA:?}")" = "$(readlink -f "${DISK:?}")" ]; echo $?   # STO-01: 0
     timeout 180 bash -c 'until systemctl is-active -q k3s; do sleep 2; done' && k wait --for=condition=Ready node --all --timeout=180s; echo $?   # K3S-05: 0
+    systemctl show k3s -p NRestarts --value                                                                                               # K3S-07: 0
     k -n default rollout status deploy/caddy-test --timeout=180s \
       && IP=$(k -n default get svc caddy-test-svc -o jsonpath='{.spec.clusterIP}') \
       && timeout 120 bash -c "until curl -sf -o /dev/null http://$IP; do sleep 5; done" \
@@ -426,6 +427,7 @@ Block 1 assumes a node prepared according to [Node Preconditions](../ansible.md#
   {
     [ "$(findmnt -n -o SOURCE --mountpoint "${APPDATA:?}")" = "$(readlink -f "${DISK:?}")" ]; echo $?   # STO-01: 0
     timeout 180 bash -c 'until systemctl is-active -q k3s; do sleep 2; done' && k wait --for=condition=Ready node --all --timeout=180s; echo $?   # K3S-05: 0
+    systemctl show k3s -p NRestarts --value                                                                                               # K3S-07: 0
     k -n default rollout status deploy/caddy-test --timeout=180s \
       && IP=$(k -n default get svc caddy-test-svc -o jsonpath='{.spec.clusterIP}') \
       && timeout 120 bash -c "until curl -sf -o /dev/null http://$IP; do sleep 5; done" \
