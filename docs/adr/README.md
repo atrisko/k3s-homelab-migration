@@ -37,6 +37,7 @@ New ADRs typically start as `Proposed` or `Accepted`:
 | [0009](0009-tier-2-appdata-storage-ext4-lvm-mdraid.md) | Tier-2 Appdata Storage via ext4 on LVM on mdraid RAID1 | Proposed |
 | [0010](0010-test-environment-roles-and-declarative-environment-separation.md) | Test Environment Roles and Declarative Environment Separation | Proposed |
 | [0011](0011-deployment-model.md) | Deployment Model with Test Branches and Pinned Releases for Critical Components | Proposed |
+| [0012](0012-external-access-model.md) | External Access Model | Proposed |
 
 ## Template
 
